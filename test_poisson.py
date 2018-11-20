@@ -24,11 +24,11 @@ for lmbd in range(1,15):
     
     fig, axes = plt.subplots(2, 1)
     
-    axes[0].hist(rand1,color="darkblue",edgecolor="black",bins=int(3*rand1.max()))
+    axes[0].hist(rand1,color="darkblue",edgecolor="black",bins=list(np.linspace(0,int(rand1.max()),int(rand1.max())+1)))
     axes[0].set_title('own sampler, {} = {}'.format("$\lambda$",lmbd))
-    axes[0].set_xlim([0,20])
-    axes[1].hist(rand2,color="darkblue",edgecolor="black",bins=int(3*rand2.max()))
+    axes[0].set_xlim([0,rand1.max()])
+    axes[1].hist(rand2,color="darkblue",edgecolor="black",bins=list(np.linspace(0,int(rand2.max()),int(rand2.max())+1)))
     axes[1].set_title('built-in sampler, {} = {}'.format("$\lambda$",lmbd))
-    axes[1].set_xlim([0,20])
+    axes[1].set_xlim([0,rand2.max()])
     plt.tight_layout()
     plt.show()
