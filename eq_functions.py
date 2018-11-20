@@ -65,23 +65,33 @@ def sample_poisson(lmbd,n):
     # I don't think a constant scale factor is good enough for low lambda, which is why I used a curve
     # that starts high and quickly trails off to being approximately constant (and the ceiling is needed for integrality anyway)
     
+    # largest poisson number depnding on lambda
+    if lmbd == 1: # function does not work well as intended for 1, so 
+        c = 10
+    else:
+        c = int(lmbd * np.ceil(-np.log10(0.04*lmbd) + 2))
+    
     # generate cumulative probability intervals
-    poissmax = int(lmbd * np.ceil(-np.log10(0.04*lmbd) + 2))
-    intv = np.zeros(poissmax+2) # array with room for all poisson numbers plus an extra zero (for the interval)
+    
+    intv = np.zeros(c+2) # array with room for all poisson numbers plus an extra zero (for the interval)
     intv[0] = 0 
-    for i in range(1,poissmax+2):
+    for i in range(1,c+2):
         intv[i] = poisson_cumul(lmbd,i-1)
         
     # get n Poisson numbers
     poiss = np.empty(n)
+    assigned = False # flag indicating whether a uniform random number was detectable in the interval
     for k in range(n):
         # generate randomly uniform number and determine which Poisson number it
         # corresponds to
         u = np.random.uniform(0,1)
-        for i in range(poissmax+1):
+        for i in range(c+1):
             if u >= intv[i] and u < intv[i+1]: # if the random number is in the enclosed interval, assign it the corresponding Poisson number
                 poiss[k] = i
+                assigned = True
                 break # leave loop asap
-            
+        if not assigned:
+            poiss[k] = c # if the number was not found in the interval somehow, assign it the largest poisson number
+        
     return poiss
             
