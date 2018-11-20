@@ -18,11 +18,11 @@ rnd.seed(a=1756)
 # estimate probability density function of Mmax.
 
 # define parameters
-a = 2
+Nt = 100 # total earthquakes to randomly sample at each iteration
+a = np.log10(Nt)
 b = 0.97
 Mc = 2.2
 
-Nt = 10**a # total earthquakes to randomly sample at each iteration
 n = int(7e3) # number of times to repeat the process
 
 Mmax = np.empty(n) # initialise array containing largest magnitude event at each iteration
