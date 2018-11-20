@@ -35,8 +35,13 @@ def sample_magnitudes(n,Mc,b):
         
     return events
 
-def omori(t,k,c,p):
+def omori(t,Tf,c,p,a):
     # Using the Omori aftershock decay law, determine the frequency of aftershocks at a time t after a main shock
+    # Tf - forecast period
+    
+    # determine k proportionality constant by integrating frequency along forecast period and equating to 10^a = total events during forecast period
+    k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
+    
     n = k/(c+t)**p
 
     return n
