@@ -1,23 +1,27 @@
 import numpy as np
 import random as rnd
 import eq_functions as eq
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # define parameters
-a = 3.2
+Nt = 100
+Tf = 15 # unit time
+a = np.log10(Nt)
 b = 0.97
 c = 0.1
 p = 1.1
+Mc = 2.0
 
-M0 = 5.0 # magnitude of initial earthquake
-n0 = eq.GR_M(M0, a, b) # get initial frequency of earthquakes (magnitude M0) using GR
+M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
+#n0 = eq.GR_M(0, Tf, c, p, a) # get initial frequency of earthquakes (magnitude M0) using GR
 
-k = n0 * c**p # use initial frequency to know the k parameter
 dt = 0.5 # define time increment
 
-n_incr = 20
-t = 0 # current time 
-for n in range(1,n_incr): # catalogue for n_incr time increments
+t = 0 # current time
+events_occured = 0 # number of earthquakes generated 
+while events_occured <= Nt: # catalogue for n_incr time increments
     t += dt
-    n_avg = eq.omori(t, k, c, p) # average freq. of quakes at time t + ndt
+    n_avg = eq.omori(0, Tf, c, p, a) # average freq. of quakes at time t + ndt
     X = np.random.poisson(n_avg)
     # to complete
