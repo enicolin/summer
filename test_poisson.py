@@ -43,7 +43,7 @@ for lmbd in range(1,15):
     for i in range(n_poissnumbers): 
         f_obs[i] = obs_counter[i] # in the ith position, store the number of occurences of the ith poisson number
     
-    # get frequency of expected observations for each poisson number
+    # get frequency of expected observations 
     f_exp = np.zeros(n_poissnumbers)
     for i in range(n_poissnumbers):
         f_exp[i] = nsamples * np.exp(-lmbd)*(lmbd**i)/(np.math.factorial(i))
@@ -76,3 +76,25 @@ for lmbd in range(1,15):
     axes[1].set_xlim([0,xlim])
     plt.tight_layout()
     plt.show()
+
+#q = 250
+#pvalues = np.empty(q)
+#lmbd = 12
+#for b in range(q):
+#    poiss_mine = eq.sample_poisson(lmbd,nsamples)
+#    # get frequency of observations for each poisson number
+#    n_poissnumbers = int(poiss_mine.max()) + 1 # number of poisson numbers
+#    f_obs = np.zeros(n_poissnumbers) # array to store frequency of observations of each sampled number
+#    obs_counter = Counter(poiss_mine) # count occurences of each sampled poisson number
+#    for i in range(n_poissnumbers): 
+#        f_obs[i] = obs_counter[i] # in the ith position, store the number of occurences of the ith poisson number
+#    
+#    # get frequency of expected observations 
+#    f_exp = np.zeros(n_poissnumbers)
+#    for i in range(n_poissnumbers):
+#        f_exp[i] = nsamples * np.exp(-lmbd)*(lmbd**i)/(np.math.factorial(i))
+#    
+#    chisq_mine, p_mine = chisquare(f_obs,f_exp,ddof=2)
+#    pvalues[b] = p_mine
+#plt.hist(pvalues,bins=30)
+#plt.show()
