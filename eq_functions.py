@@ -4,6 +4,14 @@ import random as rnd
 def GR_M(M,a,b,Mc):
     # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
     # (function of M)
+    #
+    # Inputs:
+    # M -> magnitude
+    # a, b -> quantity, slope parameters, respectively
+    # Mc -> completeness magnitude
+    #
+    # Outputs:
+    # N -> number of events of magnitude at least M
     
     N = 10**(a-b*(M-Mc))
     return N
@@ -11,22 +19,45 @@ def GR_M(M,a,b,Mc):
 def GR_N(N,a,b,Mc):
     # Given the number of events, use Gutenberg-Richter law to determine the magnitude of the smallest event
     # (function of N)
+    #
+    # Inputs:
+    # N -> number of events
+    # a, b -> quantity, slope parameters, respectively
+    # Mc -> completeness magnitude
+    #
+    # Outputs:
+    # M -> smallest expected magnitude given N events
     
     M = (-1/b)*(np.log10(N)-a-b*Mc)
     return M
 
 def GR_inv(x,Mc,b):
-    # inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x
-    # based off Gutenberg-Richter
-    # x is a uniformly random number on [0,1]
+    # inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
+    # based off Gutenberg-Richter. needed for sampling events according to GR law
+    #
+    # Inputs:
+    # x -> a (uniformly random) number on [0,1]
+    # Mc -> completeness magnitude
+    # b -> slope parameter
+    #
+    # Outputs:
+    # F_inv -> y such that F(y) = x, where F is defined above
+    
     
     Finv = Mc - (1/b)*np.log10(1-x)
     return Finv
 
 def sample_magnitudes(n,Mc,b):
-    # sample n earthquake events given appropriate parameters based off GR
-    # uses the probability integral transform method
-    # returns array of length n, whose ith element is the magnitude of the ith event
+    # sample n earthquake events given appropriate parameters based off GR.
+    # uses the probability integral transform method.
+    #
+    # Inputs:
+    # n -> number of events to sample
+    # Mc -> completeness magnitude
+    # b -> slope parameter
+    #
+    # Outputs:
+    # events -> array of length n, whose ith element is the magnitude of the ith event
     
     events = np.empty(n) # initialise 
     for i in range(n):
@@ -37,7 +68,14 @@ def sample_magnitudes(n,Mc,b):
 
 def omori(t,Tf,c,p,a):
     # Using the Omori aftershock decay law, determine the frequency of aftershocks at a time t after a main shock
+    #
+    # Inputs:
+    # t -> time from main shock
     # Tf - forecast period
+    # c, p, a -> c, p, quantity parameters, respectively
+    #
+    # Outputs:
+    # n -> frequency at time t
     
     # determine k proportionality constant by integrating frequency along forecast period and equating to 10^a = total events during forecast period
     k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
@@ -48,6 +86,14 @@ def omori(t,Tf,c,p,a):
 
 def poisson_cumul(lmbd,x):
     # returns P(X<=x) where X ~ Poisson(lmbd)
+    #
+    # Inputs:
+    # lmbd -> E[X] = Var[X], given X ~ Poisson(lmbd)
+    # x -> x such that P(X<=x)
+    #
+    # Outputs:
+    # p -> P(X<=x)
+    
     p = 0
     for k in range(x+1):
         p += lmbd**k/np.math.factorial(k)
