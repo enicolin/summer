@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 from collections import Counter
 from scipy.stats import chisquare
 
+np.random.seed(1756)
 rnd.seed(a=1756)
 
 nsamples = int(1e5)

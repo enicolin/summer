@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 rnd.seed(a=1756)
+np.random.seed(1756)
 
 # Script to generate a sample of 100 earthquake magnitues using GR law, and
 # determine the largest magnitude of these 100 eventsm Mmax. Repeat many times to 
