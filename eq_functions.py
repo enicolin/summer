@@ -1,6 +1,5 @@
 import numpy as np
 import random as rnd
-from scipy.stats import poisson as Poisson
 import decimal as dec
 
 def GR_M(M,a,b,Mc):
@@ -74,10 +73,11 @@ def omori(t,Tf,c,p,a):
     # Inputs:
     # t -> time from main shock
     # Tf - forecast period
-    # c, p, a -> c, p, quantity parameters, respectively
+    # c, p, a -> c, p, quantity parameters, respectively -- p not equal to 1
     #
     # Outputs:
     # n -> frequency at time t
+    
     
     # determine k proportionality constant by integrating frequency along forecast period and equating to 10^a = total events during forecast period
     k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
@@ -153,4 +153,22 @@ def sample_poisson(lmbd,n):
             poiss[k] = c # if the number was not found in the interval somehow, assign it the largest poisson number
         
     return poiss
-            
+
+def average_seismicity(t_low,t_upp,Tf,a,p,c):
+    # take the mean of n as given by the Omori law on interval [t_low,t_upp] using the definite integral
+    #
+    # Inputs:
+    # t_low -> lower time limit
+    # t_upp -> upper time limit
+    # Tf -> forecast period
+    # a, p, c -> parameters in Omori law -- p not equal to 1
+    #
+    # Outputs:
+    # n_avg -> 1/(t_upp-t_low) * integral from t_low to t_upp of n(t) dt
+    
+    k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
+    
+    n_avg = 1/(t_upp-t_low) * k * ((c+t_upp)**(1-p)/(1-p) -(c+t_low)**(1-p)/(1-p))
+    
+    return n_avg
+    
