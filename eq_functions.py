@@ -1,6 +1,7 @@
 import numpy as np
 import random as rnd
 import decimal as dec
+from math import log
 
 def GR_M(M,a,b,Mc):
     # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
@@ -89,6 +90,20 @@ def omori(t,Tf,c,p,a):
 
     return n
 
+def poisson(x,lmbd):
+    # Given X ~ Poisson(lmbd), computes P(X = x)
+    # Rephrased using logs to handle bigger lambda
+    #
+    # Inputs:
+    # x -> integer
+    # lmbd -> expected value
+    #
+    # Outputs:
+    # p -> P(X = x)
+    
+    p = np.exp(x*log(lmbd) - log(np.math.factorial(x))-lmbd)
+    return p
+
 def poisson_cumul(lmbd,x):
     # returns P(X<=x) where X ~ Poisson(lmbd)
     #
@@ -100,13 +115,11 @@ def poisson_cumul(lmbd,x):
     # p -> P(X<=x)
     
     # possibly temporary fix for case large lambda
-    lmbd = dec.Decimal(lmbd)
+#    lmbd = dec.Decimal(lmbd)
     
     p = 0
     for k in range(x+1):
-        p += lmbd**k/np.math.factorial(k)
-    
-    p *= np.exp(-lmbd)
+        p += poisson(k, lmbd)
     
     return p
 
