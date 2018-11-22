@@ -1,5 +1,7 @@
 import numpy as np
 import random as rnd
+from scipy.stats import poisson as Poisson
+import decimal as dec
 
 def GR_M(M,a,b,Mc):
     # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
@@ -59,7 +61,7 @@ def sample_magnitudes(n,Mc,b):
     # Outputs:
     # events -> array of length n, whose ith element is the magnitude of the ith event
     
-    events = np.empty(n) # initialise 
+    events = np.zeros(n) # initialise 
     for i in range(n):
         xi = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
         events[i] = GR_inv(xi, Mc, b)
@@ -94,6 +96,9 @@ def poisson_cumul(lmbd,x):
     # Outputs:
     # p -> P(X<=x)
     
+    # possibly temporary fix for case large lambda
+    lmbd = dec.Decimal(lmbd)
+    
     p = 0
     for k in range(x+1):
         p += lmbd**k/np.math.factorial(k)
@@ -104,6 +109,14 @@ def poisson_cumul(lmbd,x):
 
 def sample_poisson(lmbd,n):
     # sample randomn n numbers from a poisson distribution
+    #
+    # Inputs:
+    # lmbd -> E[X] = Var[X], given X ~ Poisson(lmbd)
+    # n -> number of events to sample
+    #
+    # Outputs:
+    # poiss -> array of length n containing numbers sampled from a Poisson distribution
+    
     
     # have decided to have possible Poisson numbers in range [0,lambda*k],
     # where k = ceiling(-log10(0.04*lambda) + 2). Scale factor is based off wanting to keep
