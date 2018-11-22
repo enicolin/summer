@@ -80,7 +80,10 @@ def omori(t,Tf,c,p,a):
     
     
     # determine k proportionality constant by integrating frequency along forecast period and equating to 10^a = total events during forecast period
-    k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
+    A = 1 - p
+    B = (c+Tf)**(1-p)
+    C = c**(1-p)
+    k = 10**a * A/(B-C)
     
     n = k/(c+t)**p
 
