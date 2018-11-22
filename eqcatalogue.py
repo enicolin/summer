@@ -4,8 +4,8 @@ import eq_functions as eq
 import pandas as pd
 import matplotlib.pyplot as plt
 
-#np.random.seed(1756)
-#rnd.seed(1756)
+np.random.seed(1756)
+rnd.seed(1756)
 
 # define parameters
 Nt = 50
@@ -39,7 +39,7 @@ for t in times[:-1]: # for each time interval
         # index label for current time interval
         if X != 0:
             interval = [''] * X
-            interval[0] = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)] # only include interval label on first row
+            interval[0] = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)] # only include interval label on first row
             # create dataframe using dict of objects
             Xcol = ['']*X # only include number of events on first row
             Xcol[0] = X
@@ -50,7 +50,7 @@ for t in times[:-1]: # for each time interval
                                    'Average aftershock frequency':n_avgcol}, index = interval)
             catalog = catalog.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
-            interval = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)]
+            interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
             catalog = pd.DataFrame({'M': ['-'],
                                       'X':[X],
                                       'n_avg':[n_avg]}, index = interval)
@@ -59,7 +59,7 @@ for t in times[:-1]: # for each time interval
         # index label for current time interval
         if X != 0: 
             interval = [''] * X
-            interval[0] = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)]# * X
+            interval[0] = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]# * X
             Xcol = ['']*X
             Xcol[0] = X
             n_avgcol = ['']*X
@@ -69,7 +69,7 @@ for t in times[:-1]: # for each time interval
                                       'Average aftershock frequency':n_avgcol}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
-            interval = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)]
+            interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
             catalog_update = pd.DataFrame({'Magnitude': ['-'],
                                       'Events':[X],
                                       'Average aftershock frequency':[n_avg]}, index = interval)
@@ -77,4 +77,6 @@ for t in times[:-1]: # for each time interval
         frames = [catalog, catalog_update]
         catalog = pd.concat(frames)
 
-    events_occured += X # 
+    events_occured += X
+
+catalog.to_csv('catalog.csv')
