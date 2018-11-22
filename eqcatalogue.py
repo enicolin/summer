@@ -4,29 +4,27 @@ import eq_functions as eq
 import pandas as pd
 import matplotlib.pyplot as plt
 
-np.random.seed(1756)
-rnd.seed(1756)
+#np.random.seed(1756)
+#rnd.seed(1756)
 
 # define parameters
-Nt = 100
-Tf = 15 # unit time
+Nt = 50
+Tf = 7 # unit time
 a = np.log10(Nt)
-b = 0.97
-c = 1
+b = 1.
+c = 1.
 p = 1.1
-Mc = 2
+Mc = 3.
 
 #M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
 
+times = np.linspace(0,Tf,Tf) # time intervals
+dt = times[1]-times[0]# define time increment
 
-dt = Tf*1e-2 # define time increment
-
-t = 0 # current time
+# intended column order
+cols = ['Average aftershock frequency','Events','Magnitude']
 events_occured = 0 # number of earthquakes generated 
-#iterations = -1
-while events_occured < Nt: # catalogue for n_incr time increments
-#    iterations += 1
-#    print(iterations)
+for t in times[:-1]: # for each time interval
     # average seismicity rate on interval [t,t+dt]
     n_avg = eq.average_seismicity(t,t+dt,Tf,a,p,c)
     
@@ -37,28 +35,46 @@ while events_occured < Nt: # catalogue for n_incr time increments
     mgtds = eq.sample_magnitudes(X, Mc, b)
     
     # store results in dataframe
-    
-    cols = ['n_avg','X','M']
     if t == 0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
-        # index label for current time interval    
-        interval = ["Interval: [{},{}]".format(t,t+dt)] * X # length is X - the number of events
-        # create dataframe using dict of objects
-        catalog = pd.DataFrame({'M': mgtds,
-                               'X':[X]*X,
-                               'n_avg':[n_avg]*X}, index = interval)
+        # index label for current time interval
+        if X != 0:
+            interval = [''] * X
+            interval[0] = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)] # only include interval label on first row
+            # create dataframe using dict of objects
+            Xcol = ['']*X # only include number of events on first row
+            Xcol[0] = X
+            n_avgcol = ['']*X
+            n_avgcol[0] = n_avg # only include average number of events on first row
+            catalog = pd.DataFrame({'Magnitude': mgtds,
+                                   'Events':Xcol,
+                                   'Average aftershock frequency':n_avgcol}, index = interval)
+            catalog = catalog.reindex(columns = cols)
+        else: # formatting for when there are no events during a time interval
+            interval = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)]
+            catalog = pd.DataFrame({'M': ['-'],
+                                      'X':[X],
+                                      'n_avg':[n_avg]}, index = interval)
+            catalog = catalog.reindex(columns = cols)
     else: # join new results to existing catalog
-        # index label for current time interval    
-        interval = ["Interval: [{},{}]".format(t,t+dt)] * X
-        catalog_update = pd.DataFrame({'M': mgtds,
-                                      'X':[X]*X,
-                                      'n_avg':[n_avg]*X}, index = interval)
+        # index label for current time interval
+        if X != 0: 
+            interval = [''] * X
+            interval[0] = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)]# * X
+            Xcol = ['']*X
+            Xcol[0] = X
+            n_avgcol = ['']*X
+            n_avgcol[0] = n_avg
+            catalog_update = pd.DataFrame({'Magnitude': mgtds,
+                                      'Events':Xcol,
+                                      'Average aftershock frequency':n_avgcol}, index = interval)
+            catalog_update = catalog_update.reindex(columns = cols)
+        else: # formatting for when there are no events during a time interval
+            interval = ["Interval: [{:.2f},{:.2f}]".format(t,t+dt)]
+            catalog_update = pd.DataFrame({'Magnitude': ['-'],
+                                      'Events':[X],
+                                      'Average aftershock frequency':[n_avg]}, index = interval)
+            catalog_update = catalog_update.reindex(columns = cols)
         frames = [catalog, catalog_update]
         catalog = pd.concat(frames)
-    
-    if X == 0 and np.abs(n_avg) < 1:
-        break
-    
-    events_occured += X
-    t += dt
-    
-catalog = catalog.reindex(columns = cols) # order columns the way I intend
+
+    events_occured += X # 
