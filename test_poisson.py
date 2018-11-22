@@ -20,7 +20,7 @@ rnd.seed(a=1756)
 nsamples = int(1e5)
 
 
-for lmbd in range(1,15):
+for lmbd in range(70,75):
     # alternate colour of plots for easier readability
     if lmbd % 2 == 0:
         colour = "darkblue"
@@ -80,7 +80,7 @@ for lmbd in range(1,15):
 
 #q = 250
 #pvalues = np.empty(q)
-#lmbd = 12
+#lmbd = 75
 #for b in range(q):
 #    poiss_mine = eq.sample_poisson(lmbd,nsamples)
 #    # get frequency of observations for each poisson number
