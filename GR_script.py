@@ -24,7 +24,7 @@ a = np.log10(Nt)
 b = 0.97
 Mc = 2.2
 
-n = int(7e3) # number of times to repeat the process
+n = int(1e4) # number of times to repeat the process
 
 Mmax = np.empty(n) # initialise array containing largest magnitude event at each iteration
 for i in range(n):
