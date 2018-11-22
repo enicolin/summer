@@ -8,8 +8,8 @@ np.random.seed(1756)
 rnd.seed(1756)
 
 # define parameters
-Nt = 50
-Tf = 7 # unit time
+Nt = 600
+Tf = 30 # unit time
 a = np.log10(Nt)
 b = 1.
 c = 1.
@@ -79,4 +79,4 @@ for t in times[:-1]: # for each time interval
 
     events_occured += X
 
-catalog.to_csv('catalog.csv')
+#catalog.to_csv('catalog.csv')
