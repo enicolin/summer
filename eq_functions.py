@@ -33,21 +33,21 @@ def GR_N(N,a,b,Mc):
     M = (-1/b)*(np.log10(N)-a-b*Mc)
     return M
 
-def GR_inv(x,Mc,b):
+def GR_inv(u,Mc,b):
     # inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
     # based off Gutenberg-Richter. needed for sampling events according to GR law
     #
     # Inputs:
-    # x -> a (uniformly random) number on [0,1]
+    # u -> a (uniformly random) number on [0,1]
     # Mc -> completeness magnitude
     # b -> slope parameter
     #
     # Outputs:
-    # F_inv -> y such that F(y) = x, where F is defined above
+    # x -> x such that F(x) = u, where F is defined above
     
     
-    Finv = Mc - (1/b)*np.log10(1-x)
-    return Finv
+    x = Mc - (1/b)*np.log10(1-u)
+    return x
 
 def sample_magnitudes(n,Mc,b):
     # sample n earthquake events given appropriate parameters based off GR.
@@ -63,8 +63,8 @@ def sample_magnitudes(n,Mc,b):
     
     events = np.zeros(n) # initialise 
     for i in range(n):
-        xi = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
-        events[i] = GR_inv(xi, Mc, b)
+        ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
+        events[i] = GR_inv(ui, Mc, b)
         
     return events
 
@@ -88,6 +88,15 @@ def omori(t,Tf,c,p,a):
     
     n = k/(c+t)**p
 
+    return n
+
+def omori_spatial(r,rmax,c,p,a):
+    # Spatial Omori law
+    #
+    
+    k = 10**a * (1-p)/( (c+rmax)**(1-p) - (c)**(1-p) )
+    
+    n = k/(c+r)**p
     return n
 
 def poisson(x,lmbd):
@@ -187,4 +196,34 @@ def average_seismicity(t_low,t_upp,Tf,a,p,c):
     n_avg = 1/(t_upp-t_low) * k * ((c+t_upp)**(1-p)/(1-p) -(c+t_low)**(1-p)/(1-p))
     
     return n_avg
+
+def omori_spatial_inverse(u,p,c):
+    # Inverse of the cdf wihch gives the probability of having an aftershock at radius r or less, according to spatial Omori
+    #
+    # Inputs:
+    # u -> a number in [0,1]
+    # p, c -> p prime, c prime parameters
+    #
+    # Outputs:
+    # x -> the number x such that N(x) = u 
+    
+    x = (c**(1-p) - u*c**(1-p))**(1/(1-p)) - c
+    return x
+    
+def sample_location(n,c,p):
+    # Generate distances from main event according to spatial Omori law
+    #
+    # Inputs:
+    # n -> number of events
+    # c, p -> c prime and p prime parameters
+    #
+    # Outputs:
+    # locations -> an array of length n whose ith element is the distance of the ith event
+    
+    locations = np.zeros(n) # initialise 
+    for i in range(n):
+        ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
+        locations[i] = omori_spatial_inverse(ui,p,c)
+        
+    return locations
     
