@@ -8,12 +8,14 @@ np.random.seed(1756)
 rnd.seed(1756)
 
 # define parameters
-Nt = 600
-Tf = 30 # unit time
+Nt = 300
+Tf = 60 # unit time
 a = np.log10(Nt)
 b = 1.
 c = 1.
+cprime = 1.
 p = 1.1
+pprime = 1.8
 Mc = 3.
 
 #M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
@@ -22,7 +24,7 @@ times = np.linspace(0,Tf,Tf) # time intervals
 dt = times[1]-times[0]# define time increment
 
 # intended column order
-cols = ['Average aftershock frequency','Events','Magnitude']
+cols = ['Average aftershock frequency','Events','Magnitude','Distance']
 events_occured = 0 # number of earthquakes generated 
 for t in times[:-1]: # for each time interval
     # average seismicity rate on interval [t,t+dt]
@@ -33,6 +35,8 @@ for t in times[:-1]: # for each time interval
     
     # assign each event a magnitude according to GR
     mgtds = eq.sample_magnitudes(X, Mc, b)
+    
+    distances = eq.sample_location(X, cprime, pprime)
     
     # store results in dataframe
     if t == 0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
@@ -47,13 +51,15 @@ for t in times[:-1]: # for each time interval
             n_avgcol[0] = n_avg # only include average number of events on first row
             catalog = pd.DataFrame({'Magnitude': mgtds,
                                    'Events':Xcol,
-                                   'Average aftershock frequency':n_avgcol}, index = interval)
+                                   'Average aftershock frequency':n_avgcol,
+                                   'Distance':distances}, index = interval)
             catalog = catalog.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
             interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
             catalog = pd.DataFrame({'M': ['-'],
                                       'X':[X],
-                                      'n_avg':[n_avg]}, index = interval)
+                                      'n_avg':[n_avg],
+                                      'Distance':['-']}, index = interval)
             catalog = catalog.reindex(columns = cols)
     else: # join new results to existing catalog
         # index label for current time interval
@@ -66,13 +72,15 @@ for t in times[:-1]: # for each time interval
             n_avgcol[0] = n_avg
             catalog_update = pd.DataFrame({'Magnitude': mgtds,
                                       'Events':Xcol,
-                                      'Average aftershock frequency':n_avgcol}, index = interval)
+                                      'Average aftershock frequency':n_avgcol,
+                                      'Distance':distances}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
             interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
             catalog_update = pd.DataFrame({'Magnitude': ['-'],
                                       'Events':[X],
-                                      'Average aftershock frequency':[n_avg]}, index = interval)
+                                      'Average aftershock frequency':[n_avg],
+                                      'Distance':['-']}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         frames = [catalog, catalog_update]
         catalog = pd.concat(frames)
