@@ -180,7 +180,7 @@ def sample_poisson(lmbd,n):
     return poiss
 
 def average_seismicity(t_low,t_upp,Tf,a,p,c):
-    # take the mean of n as given by the Omori law on interval [t_low,t_upp] using the definite integral
+    # Get the expected number of events as given by the Omori law on interval [t_low,t_upp] using the definite integral
     #
     # Inputs:
     # t_low -> lower time limit
@@ -193,7 +193,7 @@ def average_seismicity(t_low,t_upp,Tf,a,p,c):
     
     k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
     
-    n_avg = 1/(t_upp-t_low) * k * ((c+t_upp)**(1-p)/(1-p) -(c+t_low)**(1-p)/(1-p))
+    n_avg = k * ((c+t_upp)**(1-p)/(1-p) -(c+t_low)**(1-p)/(1-p)) #* 1/(t_upp-t_low)
     
     return n_avg
 
