@@ -227,3 +227,32 @@ def sample_location(n,c,p):
         
     return locations
     
+def interevent_inverse(u,lmbd):
+    # The inverse of the cdf of the exponential distribution, for sampling random interevent times
+    #
+    # Inputs:
+    # u -> a number in [0,1]
+    # lmbd -> the exponential distribution parameter (average number of events on interval [t,t+t] in our case)
+    #
+    # Outputs:
+    # x -> the number x such that F(x) = u
+    
+    x = -(1/lmbd)*np.log(1-u)
+    
+    return x
+
+def sample_intereventtimes(lmbd,n):
+    # Generate an array of n interevent times for parameter lmbd
+    #
+    # Inputs:
+    # lmbd -> exponential distribution parameter (average number of events on interval [t,t+t] in our case)
+    # n -> the number of interevent times we want to sample
+    #
+    # Outputs:
+    # times -> array of length n whose ith element is the ith interevent time
+    times = np.zeros(n) # initialise 
+    for i in range(n):
+        ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
+        times[i] = interevent_inverse(ui,lmbd)
+        
+    return times
