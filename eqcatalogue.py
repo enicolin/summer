@@ -4,12 +4,12 @@ import eq_functions as eq
 import pandas as pd
 import matplotlib.pyplot as plt
 
-np.random.seed(1756)
-rnd.seed(1756)
+#np.random.seed(1756)
+#rnd.seed(1756)
 
 # define parameters
-Nt = 300
-Tf = 60 # unit time
+Nt = 100
+Tf = 12 # unit time
 a = np.log10(Nt)
 b = 1.
 c = 1.
@@ -20,7 +20,7 @@ Mc = 3.
 
 #M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
 
-times = np.linspace(0,Tf,Tf) # time intervals
+times = np.linspace(0,Tf,3*Tf+1) # time intervals
 dt = times[1]-times[0]# define time increment
 
 # intended column order
