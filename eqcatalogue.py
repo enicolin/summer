@@ -4,8 +4,8 @@ import eq_functions as eq
 import pandas as pd
 import matplotlib.pyplot as plt
 
-#np.random.seed(1756)
-#rnd.seed(1756)
+np.random.seed(1756)
+rnd.seed(1756)
 
 # define parameters
 Nt = 100
@@ -24,7 +24,7 @@ times = np.linspace(0,Tf,3*Tf+1) # time intervals
 dt = times[1]-times[0]# define time increment
 
 # intended column order
-cols = ['Average aftershock frequency','Events','Magnitude','Distance']
+cols = ['Average aftershock frequency','Events','Magnitude','Distance','Time']
 events_occured = 0 # number of earthquakes generated 
 for t in times[:-1]: # for each time interval
     # average seismicity rate on interval [t,t+dt]
@@ -37,6 +37,22 @@ for t in times[:-1]: # for each time interval
     mgtds = eq.sample_magnitudes(X, Mc, b)
     
     distances = eq.sample_location(X, cprime, pprime)
+    
+    # generate the times at which each event occurs, according to an exponential distribution.
+    # the parameter for the exponential distribution at time interval [t,t+dt] is the expected number
+    # of events on this interval according to the Omori law
+    times = np.zeros(X)
+    inter_times = eq.sample_intereventtimes(n_avg/dt, X)
+    if t == 0:
+        for i in range(1,X):
+            times[i] = inter_times[i] + times[i-1]
+        t_start = times[-1] # carry over to next iteration the final event time at current interval
+    else:
+        for i in range(X):
+            if i == 0: # initial time is based off previous iterations final time
+                times[i] = t_start + inter_times[i]
+            else:
+                times[i] = times[i-1] + inter_times[i]
     
     # store results in dataframe
     if t == 0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
@@ -52,14 +68,16 @@ for t in times[:-1]: # for each time interval
             catalog = pd.DataFrame({'Magnitude': mgtds,
                                    'Events':Xcol,
                                    'Average aftershock frequency':n_avgcol,
-                                   'Distance':distances}, index = interval)
+                                   'Distance':distances,
+                                   'Time':times}, index = interval)
             catalog = catalog.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
             interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
             catalog = pd.DataFrame({'M': ['-'],
                                       'X':[X],
                                       'n_avg':[n_avg],
-                                      'Distance':['-']}, index = interval)
+                                      'Distance':['-'],
+                                      'Time':['-']}, index = interval)
             catalog = catalog.reindex(columns = cols)
     else: # join new results to existing catalog
         # index label for current time interval
@@ -73,14 +91,16 @@ for t in times[:-1]: # for each time interval
             catalog_update = pd.DataFrame({'Magnitude': mgtds,
                                       'Events':Xcol,
                                       'Average aftershock frequency':n_avgcol,
-                                      'Distance':distances}, index = interval)
+                                      'Distance':distances,
+                                      'Time':times}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
             interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
             catalog_update = pd.DataFrame({'Magnitude': ['-'],
                                       'Events':[X],
                                       'Average aftershock frequency':[n_avg],
-                                      'Distance':['-']}, index = interval)
+                                      'Distance':['-'],
+                                      'Time':['-']}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         frames = [catalog, catalog_update]
         catalog = pd.concat(frames)
