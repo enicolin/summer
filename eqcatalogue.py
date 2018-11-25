@@ -43,16 +43,12 @@ for t in times[:-1]: # for each time interval
     # of events on this interval according to the Omori law
     times = np.zeros(X)
     inter_times = eq.sample_intereventtimes(n_avg/dt, X)
-    if t == 0:
-        for i in range(1,X):
+    for i in range(X):
+        if i == 0:
+            times[i] = t
+        else:
             times[i] = inter_times[i] + times[i-1]
-        t_start = times[-1] # carry over to next iteration the final event time at current interval
-    else:
-        for i in range(X):
-            if i == 0: # initial time is based off previous iterations final time
-                times[i] = t_start + inter_times[i]
-            else:
-                times[i] = times[i-1] + inter_times[i]
+
     
     # store results in dataframe
     if t == 0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
