@@ -149,7 +149,8 @@ magnitudes = np.array(magnitudes, dtype = np.float)
 plot = ax.scatter(x, y,
            c = times,
            s = 0.01*10**magnitudes, # large events much bigger than smaller ones
-           cmap = 'coolwarm')
+           cmap = 'coolwarm',
+           alpha = 0.5)
 
 cbar = fig.colorbar(plot)
 cbar.set_label('Time')
