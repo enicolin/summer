@@ -222,7 +222,7 @@ def sample_location(n,c,p):
     
     locations = np.zeros(n) # initialise 
     for i in range(n):
-        ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
+        ui = rnd.uniform(0,0.95) # pseudorandom number on [0,1] from a uniform distribution
         locations[i] = omori_spatial_inverse(ui,p,c)
         
     return locations
