@@ -8,7 +8,7 @@ np.random.seed(1756)
 rnd.seed(1756)
 
 # define parameters
-Nt = 400
+Nt = 1000
 Tf = 32 # unit time
 a = np.log10(Nt)
 b = 1.
@@ -17,16 +17,17 @@ cprime = 1.
 p = 1.1
 pprime = 1.8
 Mc = 3.
+smin = 0.7 # minimum seismicity allowable on an interval so that it doesn't get too small
+k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment 
 
 #M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
 
-times = np.linspace(0,Tf,3*Tf+1) # time intervals
-dt = times[1]-times[0]# define time increment
-
 # intended column order
 cols = ['n_avg','Events','Magnitude','Distance','theta','Time']
-events_occured = 0 # number of earthquakes generated 
-for t in times[:-1]: # for each time interval
+events_occurred = 0 # number of earthquakes generated 
+t = 0
+while t < Tf: # iterate until reached end of forecast period
+    dt = (-1/k * smin*(p-1) + (c+t)**(1-p))**(-1/(p-1)) - c - t # update time increment - set up so that seismicity is equal to smin at each interval
     # average seismicity rate on interval [t,t+dt]
     n_avg = eq.average_seismicity(t,t+dt,Tf,a,p,c)
     
@@ -36,20 +37,13 @@ for t in times[:-1]: # for each time interval
     # assign each event a magnitude according to GR
     mgtds = eq.sample_magnitudes(X, Mc, b)
     
+    # assign distances according to spatial Omori (with random azimuth angle)
     distances = eq.sample_location(X, cprime, pprime)
     thetas = np.random.uniform(0, 2*np.pi, X)
     
-    # generate the times at which each event occurs, according to an exponential distribution.
-    # the parameter for the exponential distribution at time interval [t,t+dt] is the expected number
-    # of events on this interval according to the Omori law
-    times = np.zeros(X)
-    inter_times = eq.sample_intereventtimes(n_avg/dt, X)
-    for i in range(X):
-        if i == 0:
-            times[i] = t
-        else:
-            times[i] = inter_times[i] + times[i-1]
-
+    # generate the times at which each event occurs - uniform random number on [t,t+dt]
+    times = np.random.uniform(t, t+dt, X)
+    times = np.sort(times)
     
     # store results in dataframe
     if t == 0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
@@ -71,8 +65,8 @@ for t in times[:-1]: # for each time interval
             catalog = catalog.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
             interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
-            catalog = pd.DataFrame({'M': ['-'],
-                                      'X':[X],
+            catalog = pd.DataFrame({'Magnitude': ['-'],
+                                      'Events':[X],
                                       'n_avg':[n_avg],
                                       'Distance':['-'],
                                       'Time':['-'],
@@ -106,7 +100,8 @@ for t in times[:-1]: # for each time interval
         frames = [catalog, catalog_update]
         catalog = pd.concat(frames)
 
-    events_occured += X
+    events_occurred += X
+    t += dt
 
 
 # plot the catalogue
@@ -148,14 +143,14 @@ magnitudes = np.array(magnitudes, dtype = np.float)
 
 plot = ax.scatter(x, y,
            c = times,
-           s = 0.01*10**magnitudes, # large events much bigger than smaller ones
+           s = 0.01*10**magnitudes, # large events displayed much bigger than smaller ones
            cmap = 'coolwarm',
-           alpha = 0.5)
+           alpha = 0.7)
 
 cbar = fig.colorbar(plot)
 cbar.set_label('Time')
 
-plt.title('Generated Events')
+plt.title('Generated Events ({})'.format(events_occurred))
 plt.ylabel('y position')
 plt.xlabel('x position')
 plt.grid(True)
