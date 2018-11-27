@@ -1,9 +1,14 @@
 import numpy as np
 import random as rnd
-import decimal as dec
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
+
+class Event:
+    """Earthquake class"""
+    
+    def __init__(self, magnitude):
+        self.magnitde = magnitude
 
 def GR_M(M,a,b,Mc):
     # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
@@ -277,6 +282,7 @@ def generate_catalog(prms):
     #
     # Outputs:
     # catalog -> pandas dataframe containing the synthetic catalog
+    # events_ocurred -> number of aftershocks recorded
     
     # define parameters as local variables so that Series doesn't have to be accessed multiple times
     Nt = prms['Nt']
@@ -372,7 +378,7 @@ def generate_catalog(prms):
         events_occurred += X
         t += dt
         
-    return catalog
+    return catalog, events_occurred
 
 def plot_catalog(catalog):
     # Plots generated synthetic catalog from generate_catalog

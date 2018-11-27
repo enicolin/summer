@@ -16,7 +16,7 @@ cprime = 1.
 p = 1.1
 pprime = 1.8
 Mc = 3.
-smin = 0.7 # minimum seismicity allowable on an interval so that it doesn't get too small
+smin = 0.8 # minimum seismicity allowable on an interval so that it doesn't get too small
 k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
 
 prms = pd.Series([Nt,Tf,b,c,cprime,p,pprime,Mc,smin],
@@ -25,7 +25,7 @@ prms = pd.Series([Nt,Tf,b,c,cprime,p,pprime,Mc,smin],
 #M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
 
 # generate catalog
-catalog = eq.generate_catalog(prms)
+catalog, total_events = eq.generate_catalog(prms)
 
 # plot catalog
 eq.plot_catalog(catalog)
