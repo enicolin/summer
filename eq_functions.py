@@ -421,16 +421,22 @@ def generate_catalog(prms,t0, catalog_list, gen):
             prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
             generate_catalog(prms_child, parent_shocks.iloc[i,:].Time, catalog_list, gen+1)
 
-def plot_catalog(catalog_list):
+def plot_catalog(catalog_list, color = 'time'):
     # Plots generated synthetic catalog from generate_catalog
     # Inputs:
-    # catalog -> output pandas DataFrame from generate_catalog
+    # catalog_list -> output list of pandas DataFrames from generate_catalog
+    # color -> color scheme of events
+    #           'Time' - default, colours events by time of occurrence
+    #           'Generation' - colours by aftershock generation
 
 
     fig= plt.figure()
-    ax = fig.add_subplot(111)#, projection = 'polar')
     fig.set_figheight(10)
     fig.set_figwidth(10)
+    
+    
+    total_events = 0 # count how many events took place
+    cmax = 0 # maximum time/generation considered, for the color bar
     for catalog in catalog_list:        
         theta = catalog['theta']
         try:    
@@ -448,6 +454,13 @@ def plot_catalog(catalog_list):
         x = dist * np.cos(theta)
         y = dist * np.sin(theta)
         
+        # aftershock generation
+        gen = catalog['Generation']
+        try:
+            gen = gen.loc[gen != '-']
+        except TypeError:
+            pass
+        gen = np.array(gen, dtype = np.float)
         
         times = catalog['Time']
         try:
@@ -455,6 +468,7 @@ def plot_catalog(catalog_list):
         except TypeError:
             pass
         times = np.array(times, dtype = np.float)
+    
         
         magnitudes = catalog['Magnitude']
         try:
@@ -462,18 +476,31 @@ def plot_catalog(catalog_list):
         except TypeError:
             pass
         magnitudes = np.array(magnitudes, dtype = np.float)
+        total_events += len(magnitudes)
+        
+        if color == 'Time':
+            c = times
+            cmap = 'coolwarm'
+            # update range for color bar if needed
+            if times != np.array([]):
+                cmax = max(times.max(),cmax)
+        elif color == 'Generation':
+            c = gen
+            cmap = 'tab20b'
+            if gen != np.array([]):
+                cmax = max(gen[0],cmax)
         
         plt.scatter(x, y,
-                   c = times,
+                   c = c,
                    s = 0.01*10**magnitudes, # large events displayed much bigger than smaller ones
-                   cmap = 'coolwarm',
+                   cmap = cmap,
                    alpha = 0.7)
-        plt.clim(0, 32)
+        plt.clim(0, cmax)
         
     cbar = plt.colorbar()
-    cbar.set_label('Time')
+    cbar.set_label(color)
         
-    plt.title('Generated Events')
+    plt.title('Generated Events ({})'.format(total_events))
     plt.ylabel('y position')
     plt.xlabel('x position')
     plt.grid(True)
