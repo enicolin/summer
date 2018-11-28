@@ -7,8 +7,12 @@ import matplotlib.pyplot as plt
 class Event:
     """Earthquake class"""
     
-    def __init__(self, magnitude):
-        self.magnitde = magnitude
+    def __init__(self, magnitude, time, r, theta, gen):
+        self.magnitude = magnitude
+        self.time = time
+        self.r = r
+        self.theta = theta
+        self.generation = gen
 
 def GR_M(M,a,b,Mc):
     # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
@@ -129,9 +133,6 @@ def poisson_cumul(lmbd,x):
     #
     # Outputs:
     # p -> P(X<=x)
-    
-    # possibly temporary fix for case large lambda
-#    lmbd = dec.Decimal(lmbd)
     
     p = 0
     for k in range(x+1):
@@ -264,8 +265,41 @@ def sample_intereventtimes(lmbd,n):
         
     return times
 
-def generate_catalog(prms):
+def generate_events(n_avg, t, dt, Mc, b, cprime, pprime, gen):
+    # Generate list of Event objects based off seismicity n_avg and other parameters
+    #
+    # Inputs:
+    # n_avg -> seismicity
+    # Mc -> Completeness magnitude
+    # b, cprime, pprime -> the usual parameters
+    #
+    # Outputs:
+    # events -> array whose length is a number sampled from a Poisson distribution of parameter n_avg
+    
+    # generate number of events according to a Poisson process
+    X = int((sample_poisson(n_avg,1)))
+    
+    # assign each event a magnitude according to GR
+    mgtds = sample_magnitudes(X, Mc, b)
+    
+    # assign distances according to spatial Omori (with random azimuth angle)
+    distances = sample_location(X, cprime, pprime)
+    thetas = np.random.uniform(0, 2*np.pi, X)
+    
+    # generate the times at which each event occurs - uniform random number on [t,t+dt]
+    times = np.random.uniform(t, t+dt, X)
+    times = np.sort(times)
+    events = []
+    for i in range(X):
+        eventi = Event(mgtds[i], times[i], distances[i], thetas[i], gen)
+        events.append(eventi)
+    
+    return events
+        
+
+def generate_catalog(prms,t0, catalog_list, gen):
     # Generate a synthetic aftershock catalog based off input parameters
+    # Recursively produces aftershocks for aftershocks
     #
     # Inputs:
     #
@@ -279,13 +313,16 @@ def generate_catalog(prms):
     #           pprime, from spatial Omori
     #           Mc, completeness magnitude
     #           smin, seismicity at each time interval
-    #
-    # Outputs:
-    # catalog -> pandas dataframe containing the synthetic catalog
-    # events_ocurred -> number of aftershocks recorded
+    # t0 -> initial time (0)
+    # catalog_list -> empty list to be populated with generated aftershock catalogs
+    # gen -> variable to keep track of aftershock generation
     
     # define parameters as local variables so that Series doesn't have to be accessed multiple times
-    Nt = prms['Nt']
+    A = prms['A']
+    alpha = prms['alpha']
+    M0 = prms['M0']
+    Mc = prms['Mc']
+    Nt = A*np.exp(alpha*(M0 - Mc))
     Tf = prms['Tf']
     a = np.log10(Nt)
     b = prms['b']
@@ -293,84 +330,77 @@ def generate_catalog(prms):
     cprime = prms['cprime']
     p = prms['p']
     pprime = prms['pprime']
-    Mc = prms['Mc']
     smin = prms['smin'] # minimum seismicity allowable on an interval so that it doesn't get too small
     k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
     
     # intended column order
-    cols = ['n_avg','Events','Magnitude','Distance','theta','Time']
+    cols = ['n_avg','Events','Magnitude','Generation','Distance','theta','Time']
     events_occurred = 0 # number of earthquakes generated 
-    t = 0
+    t = t0
     while t < Tf: # iterate until reached end of forecast period
         dt = (-1/k * smin*(p-1) + (c+t)**(1-p))**(-1/(p-1)) - c - t # update time increment - set up so that seismicity is equal to smin at each interval
+        if t + dt > Tf: # if time increment goes over forecast period
+            dt = Tf - t
         # average seismicity rate on interval [t,t+dt]
         n_avg = average_seismicity(t,t+dt,Tf,a,p,c)
         
-        # generate number of events according to a Poisson process
-        X = int((sample_poisson(n_avg,1)))
-        
-        # assign each event a magnitude according to GR
-        mgtds = sample_magnitudes(X, Mc, b)
-        
-        # assign distances according to spatial Omori (with random azimuth angle)
-        distances = sample_location(X, cprime, pprime)
-        thetas = np.random.uniform(0, 2*np.pi, X)
-        
-        # generate the times at which each event occurs - uniform random number on [t,t+dt]
-        times = np.random.uniform(t, t+dt, X)
-        times = np.sort(times)
-        
+        # generate events
+        events = generate_events(n_avg, t, dt, Mc, b, cprime, pprime, gen)
+        X = len(events)
+
         # store results in dataframe
-        if t == 0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
+        if t == t0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
             # index label for current time interval
             if X != 0:
-                interval = [''] * X
-                interval[0] = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)] # only include interval label on first row
+                interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)] * X 
                 # create dataframe using dict of objects
-                Xcol = ['']*X # only include number of events on first row
+                Xcol = [''] * X # only include number of events on first row
                 Xcol[0] = X
-                n_avgcol = ['']*X
+                n_avgcol = [''] * X
                 n_avgcol[0] = n_avg # only include average number of events on first row
-                catalog = pd.DataFrame({'Magnitude': mgtds,
+                catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events],
                                        'Events':Xcol,
                                        'n_avg':n_avgcol,
-                                       'Distance':distances,
-                                       'Time':times,
-                                       'theta':thetas}, index = interval)
+                                       'Distance':[event.r for event in events],
+                                       'Time':[event.time for event in events],
+                                       'theta':[event.theta for event in events],
+                                       'Generation':[event.generation for event in events]}, index = interval)
                 catalog = catalog.reindex(columns = cols)
             else: # formatting for when there are no events during a time interval
                 interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
-                catalog = pd.DataFrame({'Magnitude': ['-'],
-                                          'Events':[X],
+                catalog = pd.DataFrame({'Magnitude': [0],
+                                          'Events':[0],
                                           'n_avg':[n_avg],
                                           'Distance':['-'],
                                           'Time':['-'],
-                                          'theta':['-']}, index = interval)
+                                          'theta':['-'],
+                                          'Generation':['-']}, index = interval)
                 catalog = catalog.reindex(columns = cols)
         else: # join new results to existing catalog
             # index label for current time interval
             if X != 0: 
-                interval = [''] * X
-                interval[0] = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]# * X
-                Xcol = ['']*X
+                interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)] * X
+                Xcol = [''] * X
                 Xcol[0] = X
-                n_avgcol = ['']*X
+                n_avgcol = [''] * X
                 n_avgcol[0] = n_avg
-                catalog_update = pd.DataFrame({'Magnitude': mgtds,
+                catalog_update = pd.DataFrame({'Magnitude': [event.magnitude for event in events],
                                           'Events':Xcol,
                                           'n_avg':n_avgcol,
-                                          'Distance':distances,
-                                          'Time':times,
-                                          'theta':thetas}, index = interval)
+                                          'Distance':[event.r for event in events],
+                                          'Time':[event.time for event in events],
+                                          'theta':[event.theta for event in events],
+                                          'Generation':[event.generation for event in events]}, index = interval)
                 catalog_update = catalog_update.reindex(columns = cols)
             else: # formatting for when there are no events during a time interval
                 interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
-                catalog_update = pd.DataFrame({'Magnitude': ['-'],
-                                          'Events':[X],
+                catalog_update = pd.DataFrame({'Magnitude': [0],
+                                          'Events':[0],
                                           'n_avg':[n_avg],
                                           'Distance':['-'],
                                           'Time':['-'],
-                                          'theta':['-']}, index = interval)
+                                          'theta':['-'],
+                                          'Generation':['-']}, index = interval)
                 catalog_update = catalog_update.reindex(columns = cols)
             frames = [catalog, catalog_update]
             catalog = pd.concat(frames)
@@ -378,58 +408,71 @@ def generate_catalog(prms):
         events_occurred += X
         t += dt
         
-    return catalog, events_occurred
+    parent_shocks = catalog[catalog.Magnitude > Mc] # get shocks that are able to create aftershocks
+    # base case
+    if parent_shocks.empty or len(catalog_list) > 2: 
+        catalog_list.append(catalog)
+        return
+    else:
+        catalog_list.append(catalog)
+        for i in range(np.shape(parent_shocks)[0]):
+            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
+            
+            prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
+            generate_catalog(prms_child, parent_shocks.iloc[i,:].Time, catalog_list, gen+1)
 
-def plot_catalog(catalog):
+def plot_catalog(catalog_list):
     # Plots generated synthetic catalog from generate_catalog
     # Inputs:
     # catalog -> output pandas DataFrame from generate_catalog
+
 
     fig= plt.figure()
     ax = fig.add_subplot(111)#, projection = 'polar')
     fig.set_figheight(10)
     fig.set_figwidth(10)
-    
-    theta = catalog['theta']
-    try:    
-        theta = theta.loc[theta != '-'] # when there are no intervals containing no events (marked by '-'), this comparison doesnt work. will look into better way of getting around it
-    except TypeError:
-        pass
-    theta = np.array(theta, dtype = np.float) # needs to be float 
-    
-    dist = catalog['Distance']
-    try:
-        dist = dist.loc[dist != '-']
-    except TypeError:
-        pass
-    dist = np.array(dist, dtype = np.float)
-    x = dist * np.cos(theta)
-    y = dist * np.sin(theta)
-    
-    
-    times = catalog['Time']
-    try:
-        times = times.loc[times != '-']
-    except TypeError:
-        pass
-    times = np.array(times, dtype = np.float)
-    
-    magnitudes = catalog['Magnitude']
-    try:
-        magnitudes = magnitudes.loc[magnitudes != '-']
-    except TypeError:
-        pass
-    magnitudes = np.array(magnitudes, dtype = np.float)
-    
-    plot = ax.scatter(x, y,
-               c = times,
-               s = 0.01*10**magnitudes, # large events displayed much bigger than smaller ones
-               cmap = 'coolwarm',
-               alpha = 0.7)
-    
-    cbar = fig.colorbar(plot)
+    for catalog in catalog_list:        
+        theta = catalog['theta']
+        try:    
+            theta = theta.loc[theta != '-'] # when there are no intervals containing no events (marked by '-'), this comparison doesnt work. will look into better way of getting around it
+        except TypeError:
+            pass
+        theta = np.array(theta, dtype = np.float) # needs to be float 
+        
+        dist = catalog['Distance']
+        try:
+            dist = dist.loc[dist != '-']
+        except TypeError:
+            pass
+        dist = np.array(dist, dtype = np.float)
+        x = dist * np.cos(theta)
+        y = dist * np.sin(theta)
+        
+        
+        times = catalog['Time']
+        try:
+            times = times.loc[times != '-']
+        except TypeError:
+            pass
+        times = np.array(times, dtype = np.float)
+        
+        magnitudes = catalog['Magnitude']
+        try:
+            magnitudes = magnitudes.loc[magnitudes != 0]
+        except TypeError:
+            pass
+        magnitudes = np.array(magnitudes, dtype = np.float)
+        
+        plt.scatter(x, y,
+                   c = times,
+                   s = 0.01*10**magnitudes, # large events displayed much bigger than smaller ones
+                   cmap = 'coolwarm',
+                   alpha = 0.7)
+        plt.clim(0, 32)
+        
+    cbar = plt.colorbar()
     cbar.set_label('Time')
-    
+        
     plt.title('Generated Events')
     plt.ylabel('y position')
     plt.xlabel('x position')

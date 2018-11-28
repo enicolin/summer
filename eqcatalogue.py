@@ -7,9 +7,8 @@ np.random.seed(1756)
 rnd.seed(1756)
 
 # define parameters
-Nt = 1000
+#Nt = 1000
 Tf = 32 # unit time
-a = np.log10(Nt)
 b = 1.
 c = 1.
 cprime = 1.
@@ -17,17 +16,21 @@ p = 1.1
 pprime = 1.8
 Mc = 3.
 smin = 0.8 # minimum seismicity allowable on an interval so that it doesn't get too small
-k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
+M0 = 4.3 # magnitude of initial earthquake
+A = 2 # parameter included in law for generating expected aftershocks given main shock magnitude M0
+alpha = 3 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 
-prms = pd.Series([Nt,Tf,b,c,cprime,p,pprime,Mc,smin],
-                 index = ['Nt','Tf','b','c','cprime','p','pprime','Mc','smin'])
+prms = pd.Series([Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin],
+                 index = ['Tf','M0','A','alpha','b','c','cprime','p','pprime','Mc','smin'])
 
-#M0 = eq.sample_magnitudes(1,Mc,b) # magnitude of initial earthquake
 
 # generate catalog
-catalog, total_events = eq.generate_catalog(prms)
+catalog_list = []
+t0 = 0
+gen = 0 # generation
+eq.generate_catalog(prms, t0, catalog_list, gen)
 
 # plot catalog
-eq.plot_catalog(catalog)
+eq.plot_catalog(catalog_list)
 
 #catalog.to_csv('catalog.csv')
