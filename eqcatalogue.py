@@ -1,7 +1,7 @@
-import numpy as np
-import random as rnd
 import eq_functions as eq
 import pandas as pd
+import numpy as np
+import random as rnd
 
 np.random.seed(1756)
 rnd.seed(1756)
@@ -31,6 +31,4 @@ gen = 0 # generation
 eq.generate_catalog(prms, t0, catalog_list, gen)
 
 # plot catalog
-eq.plot_catalog(catalog_list)
-
-#catalog.to_csv('catalog.csv')
+eq.plot_catalog(catalog_list, color = 'Generation')
