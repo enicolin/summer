@@ -3,6 +3,8 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
+#from functools import lru_cache
+#@lru_cache(maxsize=None)
 
 class Event:
     '''Earthquake class'''
@@ -357,8 +359,10 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
     # Inputs:
     #
     # prms -> a pandas Series containing relevant parameters. Order not important but indices must be labelled as follows
-    #           Nt, catalog size
     #           Tf, forecast period
+    #           M0, mainshock magnitude
+    #           A, productivity parameter
+    #           alpha, productivity parameter
     #           b, slope parameter
     #           c, from Omori
     #           cprime, from spatial Omori
@@ -397,7 +401,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         # average seismicity rate on interval [t,t+dt]
         n_avg = average_seismicity(t,t+dt,Tf,a,p,c)
         
-        # generate events
+        # generate events - list of Event objects
         events = generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion)
         X = len(events)
 
@@ -405,7 +409,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         if t == t0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
             # index label for current time interval
             if X != 0:
-                interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)] * X 
+                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)] * X 
                 # create dataframe using dict of objects
                 Xcol = [''] * X # only include number of events on first row
                 Xcol[0] = X
@@ -420,7 +424,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
                                        'Generation':[event.generation for event in events]}, index = interval)
                 catalog = catalog.reindex(columns = cols)
             else: # formatting for when there are no events during a time interval
-                interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
+                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)]
                 catalog = pd.DataFrame({'Magnitude': [0],
                                           'Events':[0],
                                           'n_avg':[n_avg],
@@ -432,7 +436,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         else: # join new results to existing catalog
             # index label for current time interval
             if X != 0: 
-                interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)] * X
+                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)] * X
                 Xcol = [''] * X
                 Xcol[0] = X
                 n_avgcol = [''] * X
@@ -446,7 +450,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
                                           'Generation':[event.generation for event in events]}, index = interval)
                 catalog_update = catalog_update.reindex(columns = cols)
             else: # formatting for when there are no events during a time interval
-                interval = ['Interval: [{:.2f},{:.2f}]'.format(t,t+dt)]
+                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)]
                 catalog_update = pd.DataFrame({'Magnitude': [0],
                                           'Events':[0],
                                           'n_avg':[n_avg],
@@ -462,14 +466,15 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         t += dt
         
     if recursion:
-        parent_shocks = catalog[catalog.Magnitude > Mc] # get shocks that are able to create aftershocks
+        parent_shocks = catalog[catalog.Magnitude > Mc] # get susbet of shocks that are able to create aftershocks
         # base case
         if parent_shocks.empty: # or len(catalog_list) > 2: 
             if not catalog.loc[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
                 catalog_list.append(catalog)
             return
         else:
-            catalog_list.append(catalog)
+            if not catalog.loc[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
+                catalog_list.append(catalog)
             for i in range(np.shape(parent_shocks)[0]):
                 prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
                 
@@ -519,7 +524,7 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
         
         if color == 'Time':
             c = times
-            cmap = 'coolwarm'
+            cmap = 'RdBu'
             # update range for color bar if needed
             if times != np.array([]):
                 cmax = max(times.max(),cmax)
@@ -528,6 +533,9 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
             cmap = 'Set1'
             if gen != np.array([]):
                 cmax = max(gen[0],cmax)
+        else:
+            print("Vali color options are 'Time', 'Generation', try again")
+            return
         
         plt.scatter(x, y,
                    c = c,
@@ -535,11 +543,10 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
                    cmap = cmap,
                    alpha = 0.75)
         plt.clim(0, cmax)
-            
+    
     # plot the (initial/parent of all parents) main shock
     ax.scatter(0, 0,
-           c = '#ffffff',
-           s = 0.01*10**M0, # large events displayed much bigger than smaller ones
+           c = '#21ff60',
            alpha = 1,
            marker = "x")
     
@@ -553,6 +560,5 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     # formatting choices depending on whether viewing by aftershock generation/by time
     if color == 'Generation':
         ax.set_facecolor('#1b2330')
-    else:
-        plt.grid(True)
+
     plt.show()
