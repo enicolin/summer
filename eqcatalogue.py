@@ -14,11 +14,11 @@ c = 1.
 cprime = 1.
 p = 1.1
 pprime = 1.8
-Mc = 3.
-smin = 0.8 # minimum seismicity allowable on an interval so that it doesn't get too small
-M0 = 4.3 # magnitude of initial earthquake
-A = 2 # parameter included in law for generating expected aftershocks given main shock magnitude M0
-alpha = 3 # parameter included in law for generating expected aftershocks given main shock magnitude M0
+Mc = 2.4
+smin = 0.6 # minimum seismicity allowable on an interval so that it doesn't get too small
+M0 = 5 # magnitude of initial earthquake
+A = 1. # parameter included in law for generating expected aftershocks given main shock magnitude M0
+alpha = 2 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 
 prms = pd.Series([Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin],
                  index = ['Tf','M0','A','alpha','b','c','cprime','p','pprime','Mc','smin'])
@@ -28,7 +28,7 @@ prms = pd.Series([Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin],
 catalog_list = []
 t0 = 0
 gen = 0 # generation
-eq.generate_catalog(prms, t0, catalog_list, gen)
+eq.generate_catalog(prms, t0, catalog_list, gen, recursion = True)
 
 # plot catalog
-eq.plot_catalog(catalog_list, color = 'Generation')
+eq.plot_catalog(catalog_list, M0, color = 'Time')
