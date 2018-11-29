@@ -3,6 +3,7 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 class Event:
     """Earthquake class"""
@@ -78,6 +79,47 @@ def sample_magnitudes(n,Mc,b):
         events[i] = GR_inv(ui, Mc, b)
         
     return events
+
+def bath_inv(u,M0,Mc,b):
+    # inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
+    # based off Gutenberg-Richter. needed for sampling events according to GR law
+    #
+    # Inputs:
+    # u -> a (uniformly random) number on [0,1]
+    # M0 -> magnitude of the main shock
+    # Mc -> completeness magnitude
+    # b -> slope parameter
+    #
+    # Outputs:
+    # x -> x such that F(x) = u, where F is defined above
+    
+    dm = 1.2 # difference between main shock and greatest aftershock according to Båth
+    k = 1/(1-10**(-b*(M0-dm-Mc)))
+    
+    x = Mc - (1/b)*np.log10(1-u/k)
+    return x
+
+def sample_magnitudes_bath(n,M0,Mc,b):
+    # sample n earthquake events given appropriate parameters based off GR.
+    # uses the probability integral transform method.
+    #
+    # Inputs:
+    # n -> number of events to sample
+    # M0 -> magnitude of the main shock
+    # Mc -> completeness magnitude
+    # b -> slope parameter
+    #
+    # Outputs:
+    # events -> array of length n, whose ith element is the magnitude of the ith event
+    
+    events = np.zeros(n) # initialise 
+    for i in range(n):
+        ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
+        events[i] = bath_inv(ui, M0, Mc, b)
+        
+    return events
+
+
 
 def omori(t,Tf,c,p,a):
     # Using the Omori aftershock decay law, determine the frequency of aftershocks at a time t after a main shock
@@ -265,7 +307,7 @@ def sample_intereventtimes(lmbd,n):
         
     return times
 
-def generate_events(n_avg, t, dt, Mc, b, cprime, pprime, gen):
+def generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion):
     # Generate list of Event objects based off seismicity n_avg and other parameters
     #
     # Inputs:
@@ -280,7 +322,10 @@ def generate_events(n_avg, t, dt, Mc, b, cprime, pprime, gen):
     X = int((sample_poisson(n_avg,1)))
     
     # assign each event a magnitude according to GR
-    mgtds = sample_magnitudes(X, Mc, b)
+    if recursion: # if recursive, sample from a modified GR distribution where the largest value possible is M0 - dm
+        mgtds = sample_magnitudes_bath(X, M0, Mc, b)
+    else:
+        mgtds = sample_magnitudes(X, Mc, b)
     
     # assign distances according to spatial Omori (with random azimuth angle)
     distances = sample_location(X, cprime, pprime)
@@ -297,7 +342,7 @@ def generate_events(n_avg, t, dt, Mc, b, cprime, pprime, gen):
     return events
         
 
-def generate_catalog(prms,t0, catalog_list, gen):
+def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
     # Generate a synthetic aftershock catalog based off input parameters
     # Recursively produces aftershocks for aftershocks
     #
@@ -345,7 +390,7 @@ def generate_catalog(prms,t0, catalog_list, gen):
         n_avg = average_seismicity(t,t+dt,Tf,a,p,c)
         
         # generate events
-        events = generate_events(n_avg, t, dt, Mc, b, cprime, pprime, gen)
+        events = generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion)
         X = len(events)
 
         # store results in dataframe
@@ -408,20 +453,24 @@ def generate_catalog(prms,t0, catalog_list, gen):
         events_occurred += X
         t += dt
         
-    parent_shocks = catalog[catalog.Magnitude > Mc] # get shocks that are able to create aftershocks
-    # base case
-    if parent_shocks.empty or len(catalog_list) > 2: 
-        catalog_list.append(catalog)
-        return
+    if recursion:
+        parent_shocks = catalog[catalog.Magnitude > Mc] # get shocks that are able to create aftershocks
+        # base case
+        if parent_shocks.empty: # or len(catalog_list) > 2: 
+            catalog_list.append(catalog)
+            return
+        else:
+            catalog_list.append(catalog)
+            for i in range(np.shape(parent_shocks)[0]):
+                prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
+                
+                prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
+                generate_catalog(prms_child, parent_shocks.iloc[i,:].Time, catalog_list, gen+1)
     else:
         catalog_list.append(catalog)
-        for i in range(np.shape(parent_shocks)[0]):
-            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
-            
-            prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
-            generate_catalog(prms_child, parent_shocks.iloc[i,:].Time, catalog_list, gen+1)
+        return
 
-def plot_catalog(catalog_list, color = 'time'):
+def plot_catalog(catalog_list, M0, color = 'time'):
     # Plots generated synthetic catalog from generate_catalog
     # Inputs:
     # catalog_list -> output list of pandas DataFrames from generate_catalog
@@ -430,10 +479,18 @@ def plot_catalog(catalog_list, color = 'time'):
     #           'Generation' - colours by aftershock generation
 
 
+#    mpl.style.use('seaborn')
     fig= plt.figure()
     fig.set_figheight(10)
     fig.set_figwidth(10)
+    ax = fig.add_subplot(111)
     
+    # plot the (initial/parent of all parents) main shock
+    ax.scatter(0, 0,
+           c = '#ffffff',
+           s = 0.01*10**M0, # large events displayed much bigger than smaller ones
+           alpha = 1,
+           marker = "x")
     
     total_events = 0 # count how many events took place
     cmax = 0 # maximum time/generation considered, for the color bar
@@ -460,7 +517,7 @@ def plot_catalog(catalog_list, color = 'time'):
             gen = gen.loc[gen != '-']
         except TypeError:
             pass
-        gen = np.array(gen, dtype = np.float)
+        gen = np.array(gen, dtype = np.int)
         
         times = catalog['Time']
         try:
@@ -486,22 +543,23 @@ def plot_catalog(catalog_list, color = 'time'):
                 cmax = max(times.max(),cmax)
         elif color == 'Generation':
             c = gen
-            cmap = 'tab20b'
+            cmap = 'Set3'
             if gen != np.array([]):
                 cmax = max(gen[0],cmax)
         
         plt.scatter(x, y,
                    c = c,
-                   s = 0.01*10**magnitudes, # large events displayed much bigger than smaller ones
+                   s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
                    cmap = cmap,
                    alpha = 0.7)
         plt.clim(0, cmax)
-        
+    
     cbar = plt.colorbar()
     cbar.set_label(color)
-        
+    
     plt.title('Generated Events ({})'.format(total_events))
-    plt.ylabel('y position')
-    plt.xlabel('x position')
-    plt.grid(True)
+    ax.set_ylabel('y position')
+    ax.set_xlabel('x position')
+    ax.set_facecolor('#363737')
+#    plt.grid(True)
     plt.show()
