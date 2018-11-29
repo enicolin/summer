@@ -93,7 +93,7 @@ def bath_inv(u,M0,Mc,b):
     # Outputs:
     # x -> x such that F(x) = u, where F is defined above
     
-    dm = 1.2 # difference between main shock and greatest aftershock according to Båth
+    dm = 1. # difference between main shock and greatest aftershock according to Båth
     k = 1/(1-10**(-b*(M0-dm-Mc)))
     
     x = Mc - (1/b)*np.log10(1-u/k)
@@ -470,7 +470,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         catalog_list.append(catalog)
         return
 
-def plot_catalog(catalog_list, M0, color = 'time'):
+def plot_catalog(catalog_list, M0, color = 'Time'):
     # Plots generated synthetic catalog from generate_catalog
     # Inputs:
     # catalog_list -> output list of pandas DataFrames from generate_catalog
@@ -479,7 +479,6 @@ def plot_catalog(catalog_list, M0, color = 'time'):
     #           'Generation' - colours by aftershock generation
 
 
-#    mpl.style.use('seaborn')
     fig= plt.figure()
     fig.set_figheight(10)
     fig.set_figwidth(10)
@@ -495,64 +494,66 @@ def plot_catalog(catalog_list, M0, color = 'time'):
     total_events = 0 # count how many events took place
     cmax = 0 # maximum time/generation considered, for the color bar
     for catalog in catalog_list:        
-        theta = catalog['theta']
-        try:    
-            theta = theta.loc[theta != '-'] # when there are no intervals containing no events (marked by '-'), this comparison doesnt work. will look into better way of getting around it
-        except TypeError:
-            pass
-        theta = np.array(theta, dtype = np.float) # needs to be float 
         
-        dist = catalog['Distance']
-        try:
-            dist = dist.loc[dist != '-']
-        except TypeError:
-            pass
-        dist = np.array(dist, dtype = np.float)
-        x = dist * np.cos(theta)
-        y = dist * np.sin(theta)
+        if not catalog.loc[catalog.Magnitude != 0].empty: # if the catalog is empty, just skip over
+            theta = catalog['theta']
+            try:    
+                theta = theta.loc[theta != '-'] # when there are no intervals containing no events (marked by '-'), this comparison doesnt work. will look into better way of getting around it
+            except TypeError:
+                pass
+            theta = np.array(theta, dtype = np.float) # needs to be float 
+            
+            dist = catalog['Distance']
+            try:
+                dist = dist.loc[dist != '-']
+            except TypeError:
+                pass
+            dist = np.array(dist, dtype = np.float)
+            x = dist * np.cos(theta)
+            y = dist * np.sin(theta)
+            
+            # aftershock generation
+            gen = catalog['Generation']
+            try:
+                gen = gen.loc[gen != '-']
+            except TypeError:
+                pass
+            gen = np.array(gen, dtype = np.int)
+            
+            times = catalog['Time']
+            try:
+                times = times.loc[times != '-']
+            except TypeError:
+                pass
+            times = np.array(times, dtype = np.float)
         
-        # aftershock generation
-        gen = catalog['Generation']
-        try:
-            gen = gen.loc[gen != '-']
-        except TypeError:
-            pass
-        gen = np.array(gen, dtype = np.int)
-        
-        times = catalog['Time']
-        try:
-            times = times.loc[times != '-']
-        except TypeError:
-            pass
-        times = np.array(times, dtype = np.float)
-    
-        
-        magnitudes = catalog['Magnitude']
-        try:
-            magnitudes = magnitudes.loc[magnitudes != 0]
-        except TypeError:
-            pass
-        magnitudes = np.array(magnitudes, dtype = np.float)
-        total_events += len(magnitudes)
-        
-        if color == 'Time':
-            c = times
-            cmap = 'coolwarm'
-            # update range for color bar if needed
-            if times != np.array([]):
-                cmax = max(times.max(),cmax)
-        elif color == 'Generation':
-            c = gen
-            cmap = 'Set3'
-            if gen != np.array([]):
-                cmax = max(gen[0],cmax)
-        
-        plt.scatter(x, y,
-                   c = c,
-                   s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
-                   cmap = cmap,
-                   alpha = 0.7)
-        plt.clim(0, cmax)
+            
+            magnitudes = catalog['Magnitude']
+            try:
+                magnitudes = magnitudes.loc[magnitudes != 0]
+            except TypeError:
+                pass
+            magnitudes = np.array(magnitudes, dtype = np.float)
+            total_events += len(magnitudes)
+            
+            if color == 'Time':
+                c = times
+                cmap = 'coolwarm'
+                # update range for color bar if needed
+                if times != np.array([]):
+                    cmax = max(times.max(),cmax)
+            elif color == 'Generation':
+                c = gen
+                cmap = 'Set1'
+                if gen != np.array([]):
+                    cmax = max(gen[0],cmax)
+            
+            plt.scatter(x, y,
+                       c = c,
+                       s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
+                       cmap = cmap,
+                       alpha = 0.75)
+            plt.clim(0, cmax)
     
     cbar = plt.colorbar()
     cbar.set_label(color)
@@ -560,6 +561,10 @@ def plot_catalog(catalog_list, M0, color = 'time'):
     plt.title('Generated Events ({})'.format(total_events))
     ax.set_ylabel('y position')
     ax.set_xlabel('x position')
-    ax.set_facecolor('#363737')
-#    plt.grid(True)
+    
+    # formatting choices depending on whether viewing by aftershock generation/by time
+    if color == 'Generation':
+        ax.set_facecolor('#1a1b1c')
+    else:
+        plt.grid(True)
     plt.show()
