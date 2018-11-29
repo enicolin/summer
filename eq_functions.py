@@ -3,10 +3,9 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 
 class Event:
-    """Earthquake class"""
+    '''Earthquake class'''
     
     def __init__(self, magnitude, time, r, theta, gen):
         self.magnitude = magnitude
@@ -14,6 +13,15 @@ class Event:
         self.r = r
         self.theta = theta
         self.generation = gen
+    
+    def __repr__(self):
+        '''Returns string representation of Event'''
+        return("{}({},{},{},{},{})".format(self.__class__.__name__,
+               self.magnitude,
+               self.time,
+               self.r,
+               self.theta,
+               self.generation))
 
 def GR_M(M,a,b,Mc):
     # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
@@ -457,7 +465,8 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         parent_shocks = catalog[catalog.Magnitude > Mc] # get shocks that are able to create aftershocks
         # base case
         if parent_shocks.empty: # or len(catalog_list) > 2: 
-            catalog_list.append(catalog)
+            if not catalog.loc[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
+                catalog_list.append(catalog)
             return
         else:
             catalog_list.append(catalog)
@@ -474,86 +483,65 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     # Plots generated synthetic catalog from generate_catalog
     # Inputs:
     # catalog_list -> output list of pandas DataFrames from generate_catalog
+    # M0 -> main shock magnitude
     # color -> color scheme of events
     #           'Time' - default, colours events by time of occurrence
     #           'Generation' - colours by aftershock generation
-
 
     fig= plt.figure()
     fig.set_figheight(10)
     fig.set_figwidth(10)
     ax = fig.add_subplot(111)
     
+    total_events = 0 # count how many events took place
+    cmax = 0 # maximum time/generation considered, for the color bar
+    for catalog in catalog_list:        
+        catalog_toplot = catalog[catalog.Magnitude != 0] # extract rows where events took place
+
+        theta = catalog_toplot['theta']
+        theta = np.array(theta, dtype = np.float) # needs to be float 
+        
+        dist = catalog_toplot['Distance']
+        dist = np.array(dist, dtype = np.float)
+        x = dist * np.cos(theta)
+        y = dist * np.sin(theta)
+        
+        # which aftershock generation
+        gen = catalog_toplot['Generation']
+        gen = np.array(gen, dtype = np.int)
+        
+        times = catalog_toplot['Time']
+        times = np.array(times, dtype = np.float)
+        
+        magnitudes = catalog_toplot['Magnitude']
+        magnitudes = np.array(magnitudes, dtype = np.float)
+        total_events += len(magnitudes)
+        
+        if color == 'Time':
+            c = times
+            cmap = 'coolwarm'
+            # update range for color bar if needed
+            if times != np.array([]):
+                cmax = max(times.max(),cmax)
+        elif color == 'Generation':
+            c = gen
+            cmap = 'Set1'
+            if gen != np.array([]):
+                cmax = max(gen[0],cmax)
+        
+        plt.scatter(x, y,
+                   c = c,
+                   s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
+                   cmap = cmap,
+                   alpha = 0.75)
+        plt.clim(0, cmax)
+            
     # plot the (initial/parent of all parents) main shock
     ax.scatter(0, 0,
            c = '#ffffff',
            s = 0.01*10**M0, # large events displayed much bigger than smaller ones
            alpha = 1,
            marker = "x")
-    
-    total_events = 0 # count how many events took place
-    cmax = 0 # maximum time/generation considered, for the color bar
-    for catalog in catalog_list:        
-        
-        if not catalog.loc[catalog.Magnitude != 0].empty: # if the catalog is empty, just skip over
-            theta = catalog['theta']
-            try:    
-                theta = theta.loc[theta != '-'] # when there are no intervals containing no events (marked by '-'), this comparison doesnt work. will look into better way of getting around it
-            except TypeError:
-                pass
-            theta = np.array(theta, dtype = np.float) # needs to be float 
-            
-            dist = catalog['Distance']
-            try:
-                dist = dist.loc[dist != '-']
-            except TypeError:
-                pass
-            dist = np.array(dist, dtype = np.float)
-            x = dist * np.cos(theta)
-            y = dist * np.sin(theta)
-            
-            # aftershock generation
-            gen = catalog['Generation']
-            try:
-                gen = gen.loc[gen != '-']
-            except TypeError:
-                pass
-            gen = np.array(gen, dtype = np.int)
-            
-            times = catalog['Time']
-            try:
-                times = times.loc[times != '-']
-            except TypeError:
-                pass
-            times = np.array(times, dtype = np.float)
-        
-            
-            magnitudes = catalog['Magnitude']
-            try:
-                magnitudes = magnitudes.loc[magnitudes != 0]
-            except TypeError:
-                pass
-            magnitudes = np.array(magnitudes, dtype = np.float)
-            total_events += len(magnitudes)
-            
-            if color == 'Time':
-                c = times
-                cmap = 'coolwarm'
-                # update range for color bar if needed
-                if times != np.array([]):
-                    cmax = max(times.max(),cmax)
-            elif color == 'Generation':
-                c = gen
-                cmap = 'Set1'
-                if gen != np.array([]):
-                    cmax = max(gen[0],cmax)
-            
-            plt.scatter(x, y,
-                       c = c,
-                       s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
-                       cmap = cmap,
-                       alpha = 0.75)
-            plt.clim(0, cmax)
     
     cbar = plt.colorbar()
     cbar.set_label(color)
@@ -564,7 +552,7 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     
     # formatting choices depending on whether viewing by aftershock generation/by time
     if color == 'Generation':
-        ax.set_facecolor('#1a1b1c')
+        ax.set_facecolor('#1b2330')
     else:
         plt.grid(True)
     plt.show()
