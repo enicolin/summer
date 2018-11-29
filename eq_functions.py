@@ -500,49 +500,50 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     
     total_events = 0 # count how many events took place
     cmax = 0 # maximum time/generation considered, for the color bar
-    for catalog in catalog_list:        
-        catalog_toplot = catalog[catalog.Magnitude != 0] # extract rows where events took place
 
-        theta = catalog_toplot['theta']
-        theta = np.array(theta, dtype = np.float) # needs to be float 
-        
-        dist = catalog_toplot['Distance']
-        dist = np.array(dist, dtype = np.float)
-        x = dist * np.cos(theta)
-        y = dist * np.sin(theta)
-        
-        # which aftershock generation
-        gen = catalog_toplot['Generation']
-        gen = np.array(gen, dtype = np.int)
-        
-        times = catalog_toplot['Time']
-        times = np.array(times, dtype = np.float)
-        
-        magnitudes = catalog_toplot['Magnitude']
-        magnitudes = np.array(magnitudes, dtype = np.float)
-        total_events += len(magnitudes)
-        
-        if color == 'Time':
-            c = times
-            cmap = 'RdBu'
-            # update range for color bar if needed
-            if times != np.array([]):
-                cmax = max(times.max(),cmax)
-        elif color == 'Generation':
-            c = gen
-            cmap = 'Set1'
-            if gen != np.array([]):
-                cmax = max(gen[0],cmax)
-        else:
-            print("Vali color options are 'Time', 'Generation', try again")
-            return
-        
-        plt.scatter(x, y,
-                   c = c,
-                   s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
-                   cmap = cmap,
-                   alpha = 0.75)
-        plt.clim(0, cmax)
+    catalogs = pd.concat(catalog_list) # concatenate list of catalogs into one large dataframe     
+    catalog_toplot = catalogs[catalogs.Magnitude != 0] # extract rows where events took place
+
+    theta = catalog_toplot['theta']
+    theta = np.array(theta, dtype = np.float) # needs to be float 
+    
+    dist = catalog_toplot['Distance']
+    dist = np.array(dist, dtype = np.float)
+    x = dist * np.cos(theta)
+    y = dist * np.sin(theta)
+    
+    # which aftershock generation
+    gen = catalog_toplot['Generation']
+    gen = np.array(gen, dtype = np.int)
+    
+    times = catalog_toplot['Time']
+    times = np.array(times, dtype = np.float)
+    
+    magnitudes = catalog_toplot['Magnitude']
+    magnitudes = np.array(magnitudes, dtype = np.float)
+    total_events += len(magnitudes)
+    
+    if color == 'Time':
+        c = times
+        cmap = 'RdBu'
+        # update range for color bar if needed
+        if times != np.array([]):
+            cmax = max(times.max(),cmax)
+    elif color == 'Generation':
+        c = gen
+        cmap = 'Set1'
+        if gen != np.array([]):
+            cmax = max(gen.max(),cmax)
+    else:
+        print("Valid color options are 'Time', 'Generation', try again")
+        return
+    
+    plt.scatter(x, y,
+               c = c,
+               s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
+               cmap = cmap,
+               alpha = 0.75)
+    plt.clim(0, cmax)
     
     # plot the (initial/parent of all parents) main shock
     ax.scatter(0, 0,

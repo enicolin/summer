@@ -33,10 +33,8 @@ t0 = 0
 gen = 0 # generation
 eq.generate_catalog(prms, t0, catalog_list, gen, recursion = True)
 
-#print(datetime.now() - start)
-
 # plot catalog
 eq.plot_catalog(catalog_list, M0, color = 'Generation')
-#eq.plot_catalog(catalog_list, M0, color = 'Time')
+eq.plot_catalog(catalog_list, M0, color = 'Time')
 
 print(datetime.now() - start)
