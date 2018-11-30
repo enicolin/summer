@@ -527,11 +527,9 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
                    cmap = cmap,
                    alpha = 0.75)
         plt.clim(0, cmax)
-
         
         cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
         cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
-##        cbar = plt.colorbar()
         cbar.set_label(color)
     elif color == 'Generation':
         colors = ['#ffa220', '#ddff20', '#20fffb', '#866be0', '#d83a77'] # haven't seen more than 4 generations, so up to 5 colours should be fine hopefully
