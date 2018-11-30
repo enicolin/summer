@@ -513,6 +513,9 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
         times = catalogs['Time']
         times = np.array(times, dtype = np.float)
         
+#        plt.hist(times, bins = 50) # to see if times obey Omori law
+#        plt.show()
+        
         magnitudes = catalogs['Magnitude']
         magnitudes = np.array(magnitudes, dtype = np.float)
         total_events += len(magnitudes)
