@@ -518,7 +518,7 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
         total_events += len(magnitudes)
         
         c = times
-        cmap = 'RdBu'
+        cmap = 'Spectral'
         # update range for color bar if needed
         cmax = times.max()
         plot = plt.scatter(x, y,
@@ -554,7 +554,7 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
             magnitudes = np.array(magnitudes, dtype = np.float)
             total_events += len(magnitudes)
             
-            c = catalog.Generation[0] # colour is generation
+            c = np.array(catalog.Generation)[0] # colour is generation
             plt.scatter(x, y,
                        c = event_color,
                        s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
@@ -562,8 +562,9 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
                        cmap = 'Set1',
                        alpha = 0.75)
         lgnd = plt.legend(loc="upper right", scatterpoints=1, fontsize=18)
-        lgnd.legendHandles[0]._sizes = [50]
-        lgnd.legendHandles[1]._sizes = [50]
+        for lgndhndl in lgnd.legendHandles:
+            lgndhndl._sizes = [50]
+#        lgnd.legendHandles[1]._sizes = [50]
     
     # plot the (initial/parent of all parents) main shock
     ax.scatter(0, 0,
@@ -578,6 +579,8 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     # formatting choices depending on whether viewing by aftershock generation/by time
     if color == 'Generation':
         ax.set_facecolor('#1b2330')
+    else:
+        ax.grid(True)
 
     plt.show()
     
