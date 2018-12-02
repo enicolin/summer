@@ -492,8 +492,8 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     #           'Generation' - colours by aftershock generation
 
     fig= plt.figure()
-    fig.set_figheight(10)
-    fig.set_figwidth(10)
+    fig.set_figheight(8)
+    fig.set_figwidth(8)
     ax = fig.add_subplot(111)
     
     total_events = 0 # count how many events took place
