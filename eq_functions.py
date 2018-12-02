@@ -429,67 +429,38 @@ def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
         X = len(events)
 
         # store results in dataframe
-        if t == t0: # initial dataframe, full dataframe constructed via concatenation in subsequent iterations
-            # index label for current time interval
-            if X != 0:
-                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)] * X 
-                # create dataframe using dict of objects
-                Xcol = [''] * X # only include number of events on first row
-                Xcol[0] = X
-                n_avgcol = [''] * X
-                n_avgcol[0] = n_avg # only include average number of events on first row
-                catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events],
-                                       'Events':Xcol,
-                                       'n_avg':n_avgcol,
-                                       'Distance':[event.r for event in events],
-                                       'Time':[event.time for event in events],
-                                       'theta':[event.theta for event in events],
-                                       'x':[event.x for event in events],
-                                       'y':[event.y for event in events],
-                                       'Generation':[event.generation for event in events]}, index = interval)
-                catalog = catalog.reindex(columns = cols)
-            else: # formatting for when there are no events during a time interval
-                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)]
-                catalog = pd.DataFrame({'Magnitude': [0],
-                                          'Events':[0],
-                                          'n_avg':[n_avg],
-                                          'Distance':['-'],
-                                          'Time':['-'],
-                                          'theta':['-'],
-                                          'x':['-'],
-                                          'y':['-'],
-                                          'Generation':['-']}, index = interval)
-                catalog = catalog.reindex(columns = cols)
-        else: # join new results to existing catalog
-            # index label for current time interval
-            if X != 0: 
-                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)] * X
-                Xcol = [''] * X
-                Xcol[0] = X
-                n_avgcol = [''] * X
-                n_avgcol[0] = n_avg
-                catalog_update = pd.DataFrame({'Magnitude': [event.magnitude for event in events],
-                                          'Events':Xcol,
-                                          'n_avg':n_avgcol,
-                                          'Distance':[event.r for event in events],
-                                          'Time':[event.time for event in events],
-                                          'theta':[event.theta for event in events],
-                                          'x':[event.x for event in events],
-                                          'y':[event.y for event in events],
-                                          'Generation':[event.generation for event in events]}, index = interval)
-                catalog_update = catalog_update.reindex(columns = cols)
-            else: # formatting for when there are no events during a time interval
-                interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)]
-                catalog_update = pd.DataFrame({'Magnitude': [0],
-                                          'Events':[0],
-                                          'n_avg':[n_avg],
-                                          'Distance':['-'],
-                                          'Time':['-'],
-                                          'theta':['-'],
-                                          'x':['-'],
-                                          'y':['-'],
-                                          'Generation':['-']}, index = interval)
-                catalog_update = catalog_update.reindex(columns = cols)
+        if X != 0:
+            interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)] * X 
+            # create dataframe using dict of objects
+            Xcol = [''] * X # only include number of events on first row
+            Xcol[0] = X
+            n_avgcol = [''] * X
+            n_avgcol[0] = n_avg # only include average number of events on first row
+            catalog_update = pd.DataFrame({'Magnitude': [event.magnitude for event in events],
+                                   'Events':Xcol,
+                                   'n_avg':n_avgcol,
+                                   'Distance':[event.r for event in events],
+                                   'Time':[event.time for event in events],
+                                   'theta':[event.theta for event in events],
+                                   'x':[event.x for event in events],
+                                   'y':[event.y for event in events],
+                                   'Generation':[event.generation for event in events]}, index = interval)
+            catalog_update = catalog_update.reindex(columns = cols)
+        else: # formatting for when there are no events during a time interval
+            interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)]
+            catalog_update = pd.DataFrame({'Magnitude': [0],
+                                      'Events':[0],
+                                      'n_avg':[n_avg],
+                                      'Distance':['-'],
+                                      'Time':['-'],
+                                      'theta':['-'],
+                                      'x':['-'],
+                                      'y':['-'],
+                                      'Generation':['-']}, index = interval)
+            catalog_update = catalog_update.reindex(columns = cols)
+        if t == t0:
+            catalog = catalog_update
+        else:
             frames = [catalog, catalog_update]
             catalog = pd.concat(frames)
     
@@ -499,16 +470,15 @@ def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
     if recursion:
         parent_shocks = catalog[catalog.Magnitude > Mc] # get susbet of shocks that are able to create aftershocks
         # base case
-        if parent_shocks.empty: # or len(catalog_list) > 2: 
+        if parent_shocks.empty:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
                 catalog_list.append(catalog)
             return
         else:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
                 catalog_list.append(catalog)
+            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
             for i in range(np.shape(parent_shocks)[0]):
-                prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
-                
                 prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
                 generate_catalog(prms_child, parent_shocks.iloc[i,:].Time,
                                  r0 + np.array([parent_shocks.iloc[i,:].x, parent_shocks.iloc[i,:].y]),
@@ -540,9 +510,7 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     if color == 'Time': # formatting for time option
         theta = catalogs['theta']
         theta = np.array(theta, dtype = np.float) # needs to be float 
-        
-#        dist = catalogs['Distance']
-#        dist = np.array(dist, dtype = np.float)
+
         x = catalogs['x']#dist * np.cos(theta)
         y = catalogs['y']#dist * np.sin(theta)
 
@@ -578,13 +546,7 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
             catalogs_bygen.append(catalogs[catalogs.Generation == i])
         
         for catalog, event_color in zip(catalogs_bygen, colors):
-            # get azimuth angles
-#            theta = catalog['theta']
-#            theta = np.array(theta, dtype = np.float) # needs to be float 
-            
             # get coordinates
-#            dist = catalog['Distance']
-#            dist = np.array(dist, dtype = np.float)
             x = catalogs['x']#dist * np.cos(theta)
             y = catalogs['y']#dist * np.sin(theta)
             
