@@ -24,62 +24,66 @@ class Event:
                self.generation))
 
 def GR_M(M,a,b,Mc):
-    # Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
-    # (function of M)
-    #
-    # Inputs:
-    # M -> magnitude
-    # a, b -> quantity, slope parameters, respectively
-    # Mc -> completeness magnitude
-    #
-    # Outputs:
-    # N -> number of events of magnitude at least M
+    """
+    Use the Gutenberg-Richter law to give the number of events of at least magnitude M over a time period
+    (function of M)
+    
+    Inputs:
+    M -> magnitude
+    a, b -> quantity, slope parameters, respectively
+    Mc -> completeness magnitude
+    
+    Outputs:
+    N -> number of events of magnitude at least M
+    """
     
     N = 10**(a-b*(M-Mc))
     return N
 
 def GR_N(N,a,b,Mc):
-    # Given the number of events, use Gutenberg-Richter law to determine the magnitude of the smallest event
-    # (function of N)
-    #
-    # Inputs:
-    # N -> number of events
-    # a, b -> quantity, slope parameters, respectively
-    # Mc -> completeness magnitude
-    #
-    # Outputs:
-    # M -> smallest expected magnitude given N events
+    """
+    Given the number of events, use Gutenberg-Richter law to determine the magnitude of the smallest event
+    (function of N)
+    Inputs:
+    N -> number of events
+    a, b -> quantity, slope parameters, respectively
+    Mc -> completeness magnitude
+    
+    Outputs:
+    M -> smallest expected magnitude given N events
+    """
     
     M = (-1/b)*(np.log10(N)-a-b*Mc)
     return M
 
 def GR_inv(u,Mc,b):
-    # inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
-    # based off Gutenberg-Richter. needed for sampling events according to GR law
-    #
-    # Inputs:
-    # u -> a (uniformly random) number on [0,1]
-    # Mc -> completeness magnitude
-    # b -> slope parameter
-    #
-    # Outputs:
-    # x -> x such that F(x) = u, where F is defined above
+    """
+    inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
+    based off Gutenberg-Richter. needed for sampling events according to GR law
+    Inputs:
+    u -> a (uniformly random) number on [0,1]
+    Mc -> completeness magnitude
+    b -> slope parameter
     
+    Outputs:
+    x -> x such that F(x) = u, where F is defined above
+    """
     
     x = Mc - (1/b)*np.log10(1-u)
     return x
 
 def sample_magnitudes(n,Mc,b):
-    # sample n earthquake events given appropriate parameters based off GR.
-    # uses the probability integral transform method.
-    #
-    # Inputs:
-    # n -> number of events to sample
-    # Mc -> completeness magnitude
-    # b -> slope parameter
-    #
-    # Outputs:
-    # events -> array of length n, whose ith element is the magnitude of the ith event
+    """
+    sample n earthquake events given appropriate parameters based off GR.
+    uses the probability integral transform method.
+    Inputs:
+    n -> number of events to sample
+    Mc -> completeness magnitude
+    b -> slope parameter
+    
+    Outputs:
+    events -> array of length n, whose ith element is the magnitude of the ith event
+    """
     
     events = np.zeros(n) # initialise 
     for i in range(n):
@@ -89,17 +93,18 @@ def sample_magnitudes(n,Mc,b):
     return events
 
 def bath_inv(u,M0,Mc,b):
-    # inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
-    # based off Gutenberg-Richter. needed for sampling events according to GR law
-    #
-    # Inputs:
-    # u -> a (uniformly random) number on [0,1]
-    # M0 -> magnitude of the main shock
-    # Mc -> completeness magnitude
-    # b -> slope parameter
-    #
-    # Outputs:
-    # x -> x such that F(x) = u, where F is defined above
+    """
+    inverse of F, where F = F(x) = P(X<=x), the probability of having X earthquakes less than magnitude x in a time period
+    based off Gutenberg-Richter. needed for sampling events according to GR law
+    Inputs:
+    u -> a (uniformly random) number on [0,1]
+    M0 -> magnitude of the main shock
+    Mc -> completeness magnitude
+    b -> slope parameter
+    
+    Outputs:
+    x -> x such that F(x) = u, where F is defined above
+    """
     
     dm = 1. # difference between main shock and greatest aftershock according to Båth
     k = 1/(1-10**(-b*(M0-dm-Mc)))
@@ -108,17 +113,18 @@ def bath_inv(u,M0,Mc,b):
     return x
 
 def sample_magnitudes_bath(n,M0,Mc,b):
-    # sample n earthquake events given appropriate parameters based off GR.
-    # uses the probability integral transform method.
-    #
-    # Inputs:
-    # n -> number of events to sample
-    # M0 -> magnitude of the main shock
-    # Mc -> completeness magnitude
-    # b -> slope parameter
-    #
-    # Outputs:
-    # events -> array of length n, whose ith element is the magnitude of the ith event
+    """
+    sample n earthquake events given appropriate parameters based off GR.
+    uses the probability integral transform method.
+    Inputs:
+    n -> number of events to sample
+    M0 -> magnitude of the main shock
+    Mc -> completeness magnitude
+    b -> slope parameter
+    
+    Outputs:
+    events -> array of length n, whose ith element is the magnitude of the ith event
+    """
     
     events = np.zeros(n) # initialise 
     for i in range(n):
@@ -130,16 +136,16 @@ def sample_magnitudes_bath(n,M0,Mc,b):
 
 
 def omori(t,Tf,c,p,a):
-    # Using the Omori aftershock decay law, determine the frequency of aftershocks at a time t after a main shock
-    #
-    # Inputs:
-    # t -> time from main shock
-    # Tf - forecast period
-    # c, p, a -> c, p, quantity parameters, respectively -- p not equal to 1
-    #
-    # Outputs:
-    # n -> frequency at time t
+    """
+    Using the Omori aftershock decay law, determine the frequency of aftershocks at a time t after a main shock
+    Inputs:
+    t -> time from main shock
+    Tf - forecast period
+    c, p, a -> c, p, quantity parameters, respectively -- p not equal to 1
     
+    Outputs:
+    n -> frequency at time t
+    """
     
     # determine k proportionality constant by integrating frequency along forecast period and equating to 10^a = total events during forecast period
     A = 1 - p
@@ -152,8 +158,9 @@ def omori(t,Tf,c,p,a):
     return n
 
 def omori_spatial(r,rmax,c,p,a):
-    # Spatial Omori law
-    #
+    """
+    Spatial Omori law
+    """
     
     k = 10**a * (1-p)/( (c+rmax)**(1-p) - (c)**(1-p) )
     
@@ -161,9 +168,10 @@ def omori_spatial(r,rmax,c,p,a):
     return n
 
 def poisson(x,lmbd):
-    # Given X ~ Poisson(lmbd), computes P(X = x)
-    # Rephrased using logs to handle bigger lambda
-    #
+    """
+    Given X ~ Poisson(lmbd), computes P(X = x)
+    Rephrased using logs to handle bigger lambda
+    """
     # Inputs:
     # x -> integer
     # lmbd -> expected value
@@ -175,14 +183,15 @@ def poisson(x,lmbd):
     return p
 
 def poisson_cumul(lmbd,x):
-    # returns P(X<=x) where X ~ Poisson(lmbd)
-    #
-    # Inputs:
-    # lmbd -> E[X] = Var[X], given X ~ Poisson(lmbd)
-    # x -> x such that P(X<=x)
-    #
-    # Outputs:
-    # p -> P(X<=x)
+    """
+    returns P(X<=x) where X ~ Poisson(lmbd)
+    Inputs:
+    lmbd -> E[X] = Var[X], given X ~ Poisson(lmbd)
+    x -> x such that P(X<=x)
+
+    Outputs:
+    p -> P(X<=x)
+    """
     
     p = 0
     for k in range(x+1):
@@ -191,15 +200,15 @@ def poisson_cumul(lmbd,x):
     return p
 
 def sample_poisson(lmbd,n):
-    # sample randomn n numbers from a poisson distribution
-    #
-    # Inputs:
-    # lmbd -> E[X] = Var[X], given X ~ Poisson(lmbd)
-    # n -> number of events to sample
-    #
-    # Outputs:
-    # poiss -> array of length n containing numbers sampled from a Poisson distribution
-    
+    """
+    sample randomn n numbers from a poisson distribution
+    Inputs:
+    lmbd -> E[X] = Var[X], given X ~ Poisson(lmbd)
+    n -> number of events to sample
+
+    Outputs:
+    poiss -> array of length n containing numbers sampled from a Poisson distribution
+    """
     
     # have decided to have possible Poisson numbers in range [0,lambda*k],
     # where k = ceiling(-log10(0.04*lambda) + 2). Scale factor is based off wanting to keep
@@ -238,16 +247,17 @@ def sample_poisson(lmbd,n):
     return poiss
 
 def average_seismicity(t_low,t_upp,Tf,a,p,c):
-    # Get the expected number of events as given by the Omori law on interval [t_low,t_upp] using the definite integral
-    #
-    # Inputs:
-    # t_low -> lower time limit
-    # t_upp -> upper time limit
-    # Tf -> forecast period
-    # a, p, c -> parameters in Omori law -- p not equal to 1
-    #
-    # Outputs:
-    # n_avg -> 1/(t_upp-t_low) * integral from t_low to t_upp of n(t) dt
+    """
+    Get the expected number of events as given by the Omori law on interval [t_low,t_upp] using the definite integral
+    Inputs:
+    t_low -> lower time limit
+    t_upp -> upper time limit
+    Tf -> forecast period
+    a, p, c -> parameters in Omori law -- p not equal to 1
+
+    Outputs:
+    n_avg -> 1/(t_upp-t_low) * integral from t_low to t_upp of n(t) dt
+    """
     
     k = 10**a * (1-p)/((c+Tf)**(1-p)-(c)**(1-p))
     
@@ -256,27 +266,29 @@ def average_seismicity(t_low,t_upp,Tf,a,p,c):
     return n_avg
 
 def omori_spatial_inverse(u,p,c):
-    # Inverse of the cdf wihch gives the probability of having an aftershock at radius r or less, according to spatial Omori
-    #
-    # Inputs:
-    # u -> a number in [0,1]
-    # p, c -> p prime, c prime parameters
-    #
-    # Outputs:
-    # x -> the number x such that N(x) = u 
+    """
+    Inverse of the cdf wihch gives the probability of having an aftershock at radius r or less, according to spatial Omori
+    Inputs:
+    u -> a number in [0,1]
+    p, c -> p prime, c prime parameters
+
+    Outputs:
+    x -> the number x such that N(x) = u
+    """
     
     x = (c**(1-p) - u*c**(1-p))**(1/(1-p)) - c
     return x
     
 def sample_location(n,c,p):
-    # Generate distances from main event according to spatial Omori law
-    #
-    # Inputs:
-    # n -> number of events
-    # c, p -> c prime and p prime parameters
-    #
-    # Outputs:
-    # locations -> an array of length n whose ith element is the distance of the ith event
+    """
+    Generate distances from main event according to spatial Omori law
+    Inputs:
+    n -> number of events
+    c, p -> c prime and p prime parameters
+    
+    Outputs:
+    locations -> an array of length n whose ith element is the distance of the ith event
+    """
     
     locations = np.zeros(n) # initialise 
     for i in range(n):
@@ -286,28 +298,30 @@ def sample_location(n,c,p):
     return locations
     
 def interevent_inverse(u,lmbd):
-    # The inverse of the cdf of the exponential distribution, for sampling random interevent times
-    #
-    # Inputs:
-    # u -> a number in [0,1]
-    # lmbd -> the exponential distribution parameter (average number of events on interval [t,t+t] in our case)
-    #
-    # Outputs:
-    # x -> the number x such that F(x) = u
+    """
+    The inverse of the cdf of the exponential distribution, for sampling random interevent times
+    Inputs:
+    u -> a number in [0,1]
+    lmbd -> the exponential distribution parameter (average number of events on interval [t,t+t] in our case)
     
+    Outputs:
+    x -> the number x such that F(x) = u
+    """
     x = -(1/lmbd)*np.log(1-u)
     
     return x
 
 def sample_intereventtimes(lmbd,n):
-    # Generate an array of n interevent times for parameter lmbd
-    #
-    # Inputs:
-    # lmbd -> exponential distribution parameter (average number of events on interval [t,t+t] in our case)
-    # n -> the number of interevent times we want to sample
-    #
-    # Outputs:
-    # times -> array of length n whose ith element is the ith interevent time
+    """
+    Generate an array of n interevent times for parameter lmbd
+
+    Inputs:
+    lmbd -> exponential distribution parameter (average number of events on interval [t,t+t] in our case)
+    n -> the number of interevent times we want to sample
+    
+    Outputs:
+    times -> array of length n whose ith element is the ith interevent time
+    """
     times = np.zeros(n) # initialise 
     for i in range(n):
         ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
@@ -316,15 +330,16 @@ def sample_intereventtimes(lmbd,n):
     return times
 
 def generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion):
-    # Generate list of Event objects based off seismicity n_avg and other parameters
-    #
-    # Inputs:
-    # n_avg -> seismicity
-    # Mc -> Completeness magnitude
-    # b, cprime, pprime -> the usual parameters
-    #
-    # Outputs:
-    # events -> array whose length is a number sampled from a Poisson distribution of parameter n_avg
+    """
+    Generate list of Event objects based off seismicity n_avg and other parameters
+    Inputs:
+    n_avg -> seismicity
+    Mc -> Completeness magnitude
+    b, cprime, pprime -> the usual parameters
+    
+    Outputs:
+    events -> array whose length is a number sampled from a Poisson distribution of parameter n_avg
+    """
     
     # generate number of events according to a Poisson process
     X = int((sample_poisson(n_avg,1)))
@@ -351,26 +366,28 @@ def generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion):
         
 
 def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
-    # Generate a synthetic aftershock catalog based off input parameters
-    # Recursively produces aftershocks for aftershocks
-    #
-    # Inputs:
-    #
-    # prms -> a pandas Series containing relevant parameters. Order not important but indices must be labelled as follows
-    #           Tf, forecast period
-    #           M0, mainshock magnitude
-    #           A, productivity parameter
-    #           alpha, productivity parameter
-    #           b, slope parameter
-    #           c, from Omori
-    #           cprime, from spatial Omori
-    #           p, from Omori
-    #           pprime, from spatial Omori
-    #           Mc, completeness magnitude
-    #           smin, seismicity at each time interval
-    # t0 -> initial time (0)
-    # catalog_list -> empty list to be populated with generated aftershock catalogs
-    # gen -> variable to keep track of aftershock generation
+    """
+    Generate a synthetic aftershock catalog based off input parameters
+    Recursively produces aftershocks for aftershocks
+    
+     Inputs:
+    
+     prms -> a pandas Series containing relevant parameters. Order not important but indices must be labelled as follows
+               Tf, forecast period
+               M0, mainshock magnitude
+               A, productivity parameter
+               alpha, productivity parameter
+               b, slope parameter
+               c, from Omori
+               cprime, from spatial Omori
+               p, from Omori
+               pprime, from spatial Omori
+               Mc, completeness magnitude
+               smin, seismicity at each time interval
+     t0 -> initial time (0)
+     catalog_list -> empty list to be populated with generated aftershock catalogs
+     gen -> variable to keep track of aftershock generation
+    """
     
     # define parameters as local variables so that Series doesn't have to be accessed multiple times
     A = prms['A']
@@ -483,14 +500,15 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         return
 
 def plot_catalog(catalog_list, M0, color = 'Time'):
-    # Plots generated synthetic catalog from generate_catalog
-    # Inputs:
-    # catalog_list -> output list of pandas DataFrames from generate_catalog
-    # M0 -> main shock magnitude
-    # color -> color scheme of events
-    #           'Time' - default, colours events by time of occurrence
-    #           'Generation' - colours by aftershock generation
-
+    """
+     Plots generated synthetic catalog from generate_catalog
+     Inputs:
+     catalog_list -> output list of pandas DataFrames from generate_catalog
+     M0 -> main shock magnitude
+     color -> color scheme of events
+               'Time' - default, colours events by time of occurrence
+               'Generation' - colours by aftershock generation
+    """
     fig= plt.figure()
     fig.set_figheight(8)
     fig.set_figwidth(8)
