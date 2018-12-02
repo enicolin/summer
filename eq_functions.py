@@ -7,20 +7,24 @@ import matplotlib.pyplot as plt
 class Event:
     '''Earthquake class'''
     
-    def __init__(self, magnitude, time, r, theta, gen):
+    def __init__(self, magnitude, time, r, theta, x, y, gen):
         self.magnitude = magnitude
         self.time = time
         self.r = r
         self.theta = theta
+        self.x = x
+        self.y = y
         self.generation = gen
     
     def __repr__(self):
         '''Returns string representation of Event'''
-        return("{}({},{},{},{},{})".format(self.__class__.__name__,
+        return("{}({},{},{},{},{},{},{})".format(self.__class__.__name__,
                self.magnitude,
                self.time,
                self.r,
                self.theta,
+               self.x,
+               self.y,
                self.generation))
 
 def GR_M(M,a,b,Mc):
@@ -329,7 +333,7 @@ def sample_intereventtimes(lmbd,n):
         
     return times
 
-def generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion):
+def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     """
     Generate list of Event objects based off seismicity n_avg and other parameters
     Inputs:
@@ -342,7 +346,7 @@ def generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion):
     """
     
     # generate number of events according to a Poisson process
-    X = int((sample_poisson(n_avg,1)))
+    X =  int(np.random.poisson(n_avg,1))#int((sample_poisson(n_avg,1)))
     
     # assign each event a magnitude according to GR
     if recursion: # if recursive, sample from a modified GR distribution where the largest value possible is M0 - dm
@@ -354,18 +358,21 @@ def generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion):
     distances = sample_location(X, cprime, pprime)
     thetas = np.random.uniform(0, 2*np.pi, X)
     
+    x = r[0] + distances * np.cos(thetas)
+    y = r[1] + distances * np.sin(thetas)
+    
     # generate the times at which each event occurs - uniform random number on [t,t+dt]
     times = np.random.uniform(t, t+dt, X)
     times = np.sort(times)
-    events = []
+    events = [] #[Event(mgtds[i], times[i], distances[i], thetas[i], gen) for i in range(X)]
     for i in range(X):
-        eventi = Event(mgtds[i], times[i], distances[i], thetas[i], gen)
+        eventi = Event(mgtds[i], times[i], distances[i], thetas[i], x[i], y[i], gen)
         events.append(eventi)
     
     return events
         
 
-def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
+def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
     """
     Generate a synthetic aftershock catalog based off input parameters
     Recursively produces aftershocks for aftershocks
@@ -406,9 +413,10 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
     k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
     
     # intended column order
-    cols = ['n_avg','Events','Magnitude','Generation','Distance','theta','Time']
+    cols = ['n_avg','Events','Magnitude','Generation','Distance','theta','x','y','Time']
     events_occurred = 0 # number of earthquakes generated 
     t = t0
+#    r = r0
     while t < Tf: # iterate until reached end of forecast period
         dt = (-1/k * smin*(p-1) + (c+t)**(1-p))**(-1/(p-1)) - c - t # update time increment - set up so that seismicity is equal to smin at each interval
         if t + dt > Tf: # if time increment goes over forecast period
@@ -417,7 +425,7 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         n_avg = average_seismicity(t,t+dt,Tf,a,p,c)
         
         # generate events - list of Event objects
-        events = generate_events(n_avg, t, dt, M0, Mc, b, cprime, pprime, gen, recursion)
+        events = generate_events(n_avg, t, dt, r0, M0, Mc, b, cprime, pprime, gen, recursion)
         X = len(events)
 
         # store results in dataframe
@@ -436,6 +444,8 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
                                        'Distance':[event.r for event in events],
                                        'Time':[event.time for event in events],
                                        'theta':[event.theta for event in events],
+                                       'x':[event.x for event in events],
+                                       'y':[event.y for event in events],
                                        'Generation':[event.generation for event in events]}, index = interval)
                 catalog = catalog.reindex(columns = cols)
             else: # formatting for when there are no events during a time interval
@@ -446,6 +456,8 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
                                           'Distance':['-'],
                                           'Time':['-'],
                                           'theta':['-'],
+                                          'x':['-'],
+                                          'y':['-'],
                                           'Generation':['-']}, index = interval)
                 catalog = catalog.reindex(columns = cols)
         else: # join new results to existing catalog
@@ -462,6 +474,8 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
                                           'Distance':[event.r for event in events],
                                           'Time':[event.time for event in events],
                                           'theta':[event.theta for event in events],
+                                          'x':[event.x for event in events],
+                                          'y':[event.y for event in events],
                                           'Generation':[event.generation for event in events]}, index = interval)
                 catalog_update = catalog_update.reindex(columns = cols)
             else: # formatting for when there are no events during a time interval
@@ -472,6 +486,8 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
                                           'Distance':['-'],
                                           'Time':['-'],
                                           'theta':['-'],
+                                          'x':['-'],
+                                          'y':['-'],
                                           'Generation':['-']}, index = interval)
                 catalog_update = catalog_update.reindex(columns = cols)
             frames = [catalog, catalog_update]
@@ -484,17 +500,19 @@ def generate_catalog(prms,t0, catalog_list, gen, recursion = True):
         parent_shocks = catalog[catalog.Magnitude > Mc] # get susbet of shocks that are able to create aftershocks
         # base case
         if parent_shocks.empty: # or len(catalog_list) > 2: 
-            if not catalog.loc[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
+            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
                 catalog_list.append(catalog)
             return
         else:
-            if not catalog.loc[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
+            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
                 catalog_list.append(catalog)
             for i in range(np.shape(parent_shocks)[0]):
                 prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
                 
                 prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
-                generate_catalog(prms_child, parent_shocks.iloc[i,:].Time, catalog_list, gen+1)
+                generate_catalog(prms_child, parent_shocks.iloc[i,:].Time,
+                                 r0 + np.array([parent_shocks.iloc[i,:].x, parent_shocks.iloc[i,:].y]),
+                                 catalog_list, gen+1)
     else:
         catalog_list.append(catalog)
         return
@@ -523,10 +541,10 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
         theta = catalogs['theta']
         theta = np.array(theta, dtype = np.float) # needs to be float 
         
-        dist = catalogs['Distance']
-        dist = np.array(dist, dtype = np.float)
-        x = dist * np.cos(theta)
-        y = dist * np.sin(theta)
+#        dist = catalogs['Distance']
+#        dist = np.array(dist, dtype = np.float)
+        x = catalogs['x']#dist * np.cos(theta)
+        y = catalogs['y']#dist * np.sin(theta)
 
         times = catalogs['Time']
         times = np.array(times, dtype = np.float)
@@ -561,14 +579,14 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
         
         for catalog, event_color in zip(catalogs_bygen, colors):
             # get azimuth angles
-            theta = catalog['theta']
-            theta = np.array(theta, dtype = np.float) # needs to be float 
+#            theta = catalog['theta']
+#            theta = np.array(theta, dtype = np.float) # needs to be float 
             
             # get coordinates
-            dist = catalog['Distance']
-            dist = np.array(dist, dtype = np.float)
-            x = dist * np.cos(theta)
-            y = dist * np.sin(theta)
+#            dist = catalog['Distance']
+#            dist = np.array(dist, dtype = np.float)
+            x = catalogs['x']#dist * np.cos(theta)
+            y = catalogs['y']#dist * np.sin(theta)
             
             # get magnitudes for size
             magnitudes = catalog['Magnitude']
