@@ -7,22 +7,18 @@ import matplotlib.pyplot as plt
 class Event:
     '''Earthquake class'''
     
-    def __init__(self, magnitude, time, r, theta, x, y, gen):
+    def __init__(self, magnitude, time, x, y, gen):
         self.magnitude = magnitude
         self.time = time
-        self.r = r
-        self.theta = theta
         self.x = x
         self.y = y
         self.generation = gen
     
     def __repr__(self):
         '''Returns string representation of Event'''
-        return("{}({},{},{},{},{},{},{})".format(self.__class__.__name__,
+        return("{}({},{},{},{},{})".format(self.__class__.__name__,
                self.magnitude,
                self.time,
-               self.r,
-               self.theta,
                self.x,
                self.y,
                self.generation))
@@ -346,7 +342,7 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     """
     
     # generate number of events according to a Poisson process
-    X =  int(np.random.poisson(n_avg,1))#int((sample_poisson(n_avg,1)))
+    X = int((sample_poisson(n_avg,1)))
     
     # assign each event a magnitude according to GR
     if recursion: # if recursive, sample from a modified GR distribution where the largest value possible is M0 - dm
@@ -364,15 +360,18 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     # generate the times at which each event occurs - uniform random number on [t,t+dt]
     times = np.random.uniform(t, t+dt, X)
     times = np.sort(times)
-    events = [] #[Event(mgtds[i], times[i], distances[i], thetas[i], gen) for i in range(X)]
+    
+    # this is faster than [Event(mgtds[i], times[i], distances[i], thetas[i], gen) for i in range(X)]
+    events = [] 
     for i in range(X):
-        eventi = Event(mgtds[i], times[i], distances[i], thetas[i], x[i], y[i], gen)
+        eventi = Event(mgtds[i], times[i], x[i], y[i], gen)
         events.append(eventi)
     
     return events
         
 
-def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
+def generate_catalog(t0, r0, catalog_list, gen, recursion,
+                     Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin):
     """
     Generate a synthetic aftershock catalog based off input parameters
     Recursively produces aftershocks for aftershocks
@@ -397,23 +396,23 @@ def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
     """
     
     # define parameters as local variables so that Series doesn't have to be accessed multiple times
-    A = prms['A']
-    alpha = prms['alpha']
-    M0 = prms['M0']
-    Mc = prms['Mc']
+#    A = prms['A']
+#    alpha = prms['alpha']
+#    M0 = prms['M0']
+#    Mc = prms['Mc']
     Nt = A*np.exp(alpha*(M0 - Mc))
-    Tf = prms['Tf']
+#    Tf = prms['Tf']
     a = np.log10(Nt)
-    b = prms['b']
-    c = prms['c']
-    cprime = prms['cprime']
-    p = prms['p']
-    pprime = prms['pprime']
-    smin = prms['smin'] # minimum seismicity allowable on an interval so that it doesn't get too small
+#    b = prms['b']
+#    c = prms['c']
+#    cprime = prms['cprime']
+#    p = prms['p']
+#    pprime = prms['pprime']
+#    smin = prms['smin'] # minimum seismicity allowable on an interval so that it doesn't get too small
     k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
     
     # intended column order
-    cols = ['n_avg','Events','Magnitude','Generation','Distance','theta','x','y','Time']
+    cols = ['n_avg','Events','Magnitude','Generation','x','y','Time']
     events_occurred = 0 # number of earthquakes generated 
     t = t0
 #    r = r0
@@ -439,9 +438,7 @@ def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
             catalog_update = pd.DataFrame({'Magnitude': [event.magnitude for event in events],
                                    'Events':Xcol,
                                    'n_avg':n_avgcol,
-                                   'Distance':[event.r for event in events],
                                    'Time':[event.time for event in events],
-                                   'theta':[event.theta for event in events],
                                    'x':[event.x for event in events],
                                    'y':[event.y for event in events],
                                    'Generation':[event.generation for event in events]}, index = interval)
@@ -451,9 +448,7 @@ def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
             catalog_update = pd.DataFrame({'Magnitude': [0],
                                       'Events':[0],
                                       'n_avg':[n_avg],
-                                      'Distance':['-'],
                                       'Time':['-'],
-                                      'theta':['-'],
                                       'x':['-'],
                                       'y':['-'],
                                       'Generation':['-']}, index = interval)
@@ -472,22 +467,23 @@ def generate_catalog(prms, t0, r0, catalog_list, gen, recursion = True):
         # base case
         if parent_shocks.empty:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
-                catalog_list.append(catalog)
+                catalog_list.append(catalog[catalog.Magnitude!=0])
             return
         else:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
-                catalog_list.append(catalog)
-            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
+                catalog_list.append(catalog[catalog.Magnitude!=0])
+#            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
             for i in range(np.shape(parent_shocks)[0]):
-                prms_child.M0 = parent_shocks.iloc[i,:].Magnitude # main shock
-                generate_catalog(prms_child, parent_shocks.iloc[i,:].Time,
-                                 r0 + np.array([parent_shocks.iloc[i,:].x, parent_shocks.iloc[i,:].y]),
-                                 catalog_list, gen+1)
+#                prms_child.M0 = parent_shocks.iat[i,2] # main shock
+                generate_catalog(parent_shocks.iat[i,6],
+                                 np.array([parent_shocks.iat[i,4], parent_shocks.iat[i,5]]),
+                                 catalog_list, gen+1, recursion,
+                                 Tf,parent_shocks.iat[i,2],A,alpha,b,c,cprime,p,pprime,Mc,smin)
     else:
         catalog_list.append(catalog)
         return
 
-def plot_catalog(catalog_list, M0, color = 'Time'):
+def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
@@ -508,8 +504,6 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
     catalogs = catalogs[catalogs.Magnitude != 0] # extract rows where events took place
     
     if color == 'Time': # formatting for time option
-        theta = catalogs['theta']
-        theta = np.array(theta, dtype = np.float) # needs to be float 
 
         x = catalogs['x']#dist * np.cos(theta)
         y = catalogs['y']#dist * np.sin(theta)
@@ -562,13 +556,12 @@ def plot_catalog(catalog_list, M0, color = 'Time'):
                        label = c,
                        cmap = 'Set1',
                        alpha = 0.75)
-        lgnd = plt.legend(loc="upper right", scatterpoints=1, fontsize=18)
+        lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
-#        lgnd.legendHandles[1]._sizes = [50]
     
     # plot the (initial/parent of all parents) main shock
-    ax.scatter(0, 0,
+    ax.scatter(r0[0], r0[1],
            c = '#21ff60',
            alpha = 1,
            marker = "x")
