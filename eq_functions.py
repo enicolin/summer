@@ -377,20 +377,19 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
     Recursively produces aftershocks for aftershocks
     
      Inputs:
-    
-     prms -> a pandas Series containing relevant parameters. Order not important but indices must be labelled as follows
-               Tf, forecast period
-               M0, mainshock magnitude
-               A, productivity parameter
-               alpha, productivity parameter
-               b, slope parameter
-               c, from Omori
-               cprime, from spatial Omori
-               p, from Omori
-               pprime, from spatial Omori
-               Mc, completeness magnitude
-               smin, seismicity at each time interval
+     Tf -> forecast period
+     M0 -> mainshock magnitude
+     A -> productivity parameter
+     alpha -> productivity parameter
+     b -> slope parameter
+     c -> from Omori
+     cprime -> from spatial Omori
+     p -> from Omori
+     pprime -> from spatial Omori
+     Mc -> completeness magnitude
+     smin -> seismicity at each time interval
      t0 -> initial time (0)
+     r0 -> initial position np.array([x,y])
      catalog_list -> empty list to be populated with generated aftershock catalogs
      gen -> variable to keep track of aftershock generation
     """
@@ -572,9 +571,48 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     
     # formatting choices depending on whether viewing by aftershock generation/by time
     if color == 'Generation':
-        ax.set_facecolor('#1b2330')
+#        ax.set_facecolor('#1b2330')
+        pass
     else:
         ax.grid(True)
 
     plt.show()
+
+def catalog_plots(catalog_pkl):
     
+    catalogs = catalog_pkl[catalog_pkl.Magnitude != 0] # filter out for non-zero magnitude events
+    catalogs = catalogs.sort_values(by = ['Time']) # sort by ascending order by time
+    
+    catalogs = catalogs.loc[:,['Magnitude','Time']]
+    
+    time = np.array(catalogs.Time, dtype = float)
+    magnitude = np.array(catalogs.Magnitude)
+    
+    dt = np.array([np.abs(i-j) for i in time for j in time if i != j]).min()
+    dt = 0.95 * dt
+    
+    edges = np.concatenate((np.array([0]),time + dt))
+    rates = [1/(edges[i]-edges[i-1]) for i in range(1,len(time)+1)]
+    
+    f, (ax1, ax2) = plt.subplots(2, figsize=(10,5))
+    
+    plt.sca(ax1)
+    ax1.plot(time, rates, color = 'orange')
+    ax1.set_yscale('log')
+    ax1.set_xlabel('Time')
+    ax1.set_ylabel('Fequency of events per unit time')
+    ax1.set_title('Seismicity Rate')
+    plt.xlim([0, time.max()])
+    
+    plt.sca(ax2)
+    markerline, stemlines, baseline = ax2.stem(time, magnitude)
+    ax2.set_yscale('log')
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('Magnitude')
+    ax2.set_title('Event magnitude with time')
+    plt.xlim([0, time.max()])
+    
+    
+    plt.tight_layout()
+    plt.show()
+
