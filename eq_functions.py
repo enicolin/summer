@@ -467,11 +467,11 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         # base case
         if parent_shocks.empty:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
-                catalog_list.append(catalog[catalog.Magnitude!=0])
+                catalog_list.append(catalog[catalog.Magnitude > Mc])
             return
         else:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
-                catalog_list.append(catalog[catalog.Magnitude!=0])
+                catalog_list.append(catalog[catalog.Magnitude > Mc])
 #            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
             for i in range(np.shape(parent_shocks)[0]):
 #                prms_child.M0 = parent_shocks.iat[i,2] # main shock
