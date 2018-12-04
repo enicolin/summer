@@ -9,7 +9,7 @@ import eq_functions as eq
 import numpy as np
 import random as rnd
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 np.random.seed(1756)
 rnd.seed(1756)

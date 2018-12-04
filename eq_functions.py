@@ -579,14 +579,22 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
 
     plt.show()
 
-def frequency_by_interval(x, nbins):
+def frequency_by_interval(x, nbins, density = False):
     """
     For a given array of x values, determine the frequency of elements within nbins equally spaced bins partitioning x
     Returns (x,y) coords where x -> bin center, y -> frequency of x 
     """
-    edges = np.linspace(x.min(), x.max(), nbins + 1)
-    centers = 0.5*(edges[1:]+edges[:-1])
-    frequencies = np.array([sum(1 for i in x if (i >= edges[j] and i <= edges[j+1])) for j in range(nbins)])
+    
+    if density:
+        n_events = len(x)
+    else:
+        n_events = 1
+        
+    edges = np.linspace(x.min(), x.max(), nbins + 1) # edges of bins
+    centers = 0.5*(edges[1:]+edges[:-1]) # bin centers
+    
+    # get frequency (density) of events within each interval/bin
+    frequencies = np.array([sum(1/n_events for i in x if (i >= edges[j] and i <= edges[j+1])) for j in range(nbins)])
     
     return centers, frequencies
     
@@ -607,7 +615,7 @@ def catalog_plots(catalog_pkl):
     edges = np.concatenate((np.array([0]),time + dt))
     rates = [1/(edges[i]-edges[i-1]) for i in range(1,len(time)+1)]
     
-    f, (ax1, ax2) = plt.subplots(2, figsize=(10,5))
+    f, (ax1, ax2) = plt.subplots(2, figsize=(9,6))
     
     plt.sca(ax1)
     ax1.plot(time, rates, color = 'orange')
@@ -630,13 +638,13 @@ def catalog_plots(catalog_pkl):
     plt.sca(ax3)
     plt.grid(False)
     nbins = int(time.max()/3.5)
-    bin_centers, frequencies = frequency_by_interval(time, nbins)
+    bin_centers, frequencies = frequency_by_interval(time, nbins, density = True)
     sigma = 1
     bin_gauss = gaussian_filter1d(bin_centers, sigma)
     freq_gauss = gaussian_filter1d(frequencies, sigma)
 #    ax3.scatter(bin_centers, frequencies, color = 'black')
     ax3.plot(bin_gauss, freq_gauss, color = 'black')
-    ax3.set_ylabel('Smoothed event frequency')
+    ax3.set_ylabel('Smoothed event density')
     plt.xlim([0, time.max()])
     
     
