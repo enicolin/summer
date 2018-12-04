@@ -3,7 +3,7 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+from scipy.ndimage.filters import gaussian_filter1d
 
 class Event:
     '''Earthquake class'''
@@ -579,6 +579,19 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
 
     plt.show()
 
+def frequency_by_interval(x, nbins):
+    """
+    For a given array of x values, determine the frequency of elements within nbins equally spaced bins partitioning x
+    Returns (x,y) coords where x -> bin center, y -> frequency of x 
+    """
+    edges = np.linspace(x.min(), x.max(), nbins + 1)
+    centers = 0.5*(edges[1:]+edges[:-1])
+    frequencies = np.array([sum(1 for i in x if (i >= edges[j] and i <= edges[j+1])) for j in range(nbins)])
+    
+    return centers, frequencies
+    
+    
+
 def catalog_plots(catalog_pkl):
     catalogs = catalog_pkl[catalog_pkl.Magnitude != 0] # filter out for non-zero magnitude events
     catalogs = catalogs.sort_values(by = ['Time']) # sort by ascending order by time
@@ -607,14 +620,25 @@ def catalog_plots(catalog_pkl):
     
     plt.sca(ax2)
     markerline, stemlines, baseline = ax2.stem(time, magnitude)
-#    sns.kdeplot(magnitude)
     ax2.set_yscale('log')
     ax2.set_xlabel('Time')
     ax2.set_ylabel('Magnitude')
     ax2.set_title('Event magnitude with time')
     plt.xlim([0, time.max()])
     
+    ax3 = ax2.twinx()
+    plt.sca(ax3)
+    plt.grid(False)
+    nbins = int(time.max()/3.5)
+    bin_centers, frequencies = frequency_by_interval(time, nbins)
+    sigma = 1
+    bin_gauss = gaussian_filter1d(bin_centers, sigma)
+    freq_gauss = gaussian_filter1d(frequencies, sigma)
+#    ax3.scatter(bin_centers, frequencies, color = 'black')
+    ax3.plot(bin_gauss, freq_gauss, color = 'black')
+    ax3.set_ylabel('Smoothed event frequency')
+    plt.xlim([0, time.max()])
     
-#    plt.tight_layout()
+    
     plt.show()
 
