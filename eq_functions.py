@@ -3,6 +3,7 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 class Event:
     '''Earthquake class'''
@@ -579,7 +580,6 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     plt.show()
 
 def catalog_plots(catalog_pkl):
-    
     catalogs = catalog_pkl[catalog_pkl.Magnitude != 0] # filter out for non-zero magnitude events
     catalogs = catalogs.sort_values(by = ['Time']) # sort by ascending order by time
     
@@ -603,9 +603,11 @@ def catalog_plots(catalog_pkl):
     ax1.set_ylabel('Fequency of events per unit time')
     ax1.set_title('Seismicity Rate')
     plt.xlim([0, time.max()])
+    plt.tight_layout()
     
     plt.sca(ax2)
     markerline, stemlines, baseline = ax2.stem(time, magnitude)
+#    sns.kdeplot(magnitude)
     ax2.set_yscale('log')
     ax2.set_xlabel('Time')
     ax2.set_ylabel('Magnitude')
@@ -613,6 +615,6 @@ def catalog_plots(catalog_pkl):
     plt.xlim([0, time.max()])
     
     
-    plt.tight_layout()
+#    plt.tight_layout()
     plt.show()
 
