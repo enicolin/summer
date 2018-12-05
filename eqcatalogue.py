@@ -19,7 +19,7 @@ p = 1.1
 pprime = 1.8
 Mc = 2.
 smin = 0.6 # minimum seismicity allowable on an interval so that it doesn't get too small
-M0 = 7. # magnitude of initial earthquake
+M0 = 6. # magnitude of initial earthquake
 A = 1.1 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 alpha = 1.3 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 

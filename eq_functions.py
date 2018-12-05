@@ -8,11 +8,12 @@ from scipy.ndimage.filters import gaussian_filter1d
 class Event:
     '''Earthquake class'''
     
-    def __init__(self, magnitude, time, x, y, gen):
+    def __init__(self, magnitude, time, x, y, dist, gen):
         self.magnitude = magnitude
         self.time = time
         self.x = x
         self.y = y
+        self.distance = dist
         self.generation = gen
     
     def __repr__(self):
@@ -22,6 +23,7 @@ class Event:
                self.time,
                self.x,
                self.y,
+               self.distance,
                self.generation))
 
 def GR_M(M,a,b,Mc):
@@ -365,7 +367,7 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     # this is faster than [Event(mgtds[i], times[i], distances[i], thetas[i], gen) for i in range(X)]
     events = [] 
     for i in range(X):
-        eventi = Event(mgtds[i], times[i], x[i], y[i], gen)
+        eventi = Event(mgtds[i], times[i], x[i], y[i], distances[i], gen)
         events.append(eventi)
     
     return events
@@ -377,22 +379,22 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
     Generate a synthetic aftershock catalog based off input parameters
     Recursively produces aftershocks for aftershocks
     
-     Inputs:
-     Tf -> forecast period
-     M0 -> mainshock magnitude
-     A -> productivity parameter
-     alpha -> productivity parameter
-     b -> slope parameter
-     c -> from Omori
-     cprime -> from spatial Omori
-     p -> from Omori
-     pprime -> from spatial Omori
-     Mc -> completeness magnitude
-     smin -> seismicity at each time interval
-     t0 -> initial time (0)
-     r0 -> initial position np.array([x,y])
-     catalog_list -> empty list to be populated with generated aftershock catalogs
-     gen -> variable to keep track of aftershock generation
+    Inputs:
+    Tf -> forecast period
+    M0 -> mainshock magnitude
+    A -> productivity parameter
+    alpha -> productivity parameter
+    b -> slope parameter
+    c -> from Omori
+    cprime -> from spatial Omori
+    p -> from Omori
+    pprime -> from spatial Omori
+    Mc -> completeness magnitude
+    smin -> seismicity at each time interval
+    t0 -> initial time (0)
+    r0 -> initial position np.array([x,y])
+    catalog_list -> empty list to be populated with generated aftershock catalogs
+    gen -> variable to keep track of aftershock generation
     """
     
     # define parameters as local variables so that Series doesn't have to be accessed multiple times
@@ -412,7 +414,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
     k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
     
     # intended column order
-    cols = ['n_avg','Events','Magnitude','Generation','x','y','Time']
+    cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time']
     events_occurred = 0 # number of earthquakes generated 
     t = t0
 #    r = r0
@@ -439,6 +441,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
                                    'Events':Xcol,
                                    'n_avg':n_avgcol,
                                    'Time':[event.time for event in events],
+                                   'Distance':[event.distance for event in events],
                                    'x':[event.x for event in events],
                                    'y':[event.y for event in events],
                                    'Generation':[event.generation for event in events]}, index = interval)
@@ -449,6 +452,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
                                       'Events':[0],
                                       'n_avg':[n_avg],
                                       'Time':['-'],
+                                      'Distance':['-'],
                                       'x':['-'],
                                       'y':['-'],
                                       'Generation':['-']}, index = interval)
@@ -602,12 +606,13 @@ def frequency_by_interval(x, nbins, density = False):
 
 def catalog_plots(catalog_pkl):
     catalogs = catalog_pkl[catalog_pkl.Magnitude != 0] # filter out for non-zero magnitude events
-    catalogs = catalogs.sort_values(by = ['Time']) # sort by ascending order by time
+    catalogs = catalogs.sort_values(by = ['Time']) # sort in ascending order by time
     
-    catalogs = catalogs.loc[:,['Magnitude','Time']]
+    catalogs = catalogs.loc[:,['Magnitude','Time','Distance']]
     
     time = np.array(catalogs.Time, dtype = float)
     magnitude = np.array(catalogs.Magnitude)
+    distance = np.array(catalogs.Distance)
     
     dt = np.array([np.abs(i-j) for i in time for j in time if i != j]).min()
     dt = 0.95 * dt
@@ -615,8 +620,9 @@ def catalog_plots(catalog_pkl):
     edges = np.concatenate((np.array([0]),time + dt))
     rates = [1/(edges[i]-edges[i-1]) for i in range(1,len(time)+1)]
     
-    f, (ax1, ax2) = plt.subplots(2, figsize=(9,6))
+    f, (ax1, ax2, ax4) = plt.subplots(3, figsize=(9,6))
     
+    # plot seismicity rate
     plt.sca(ax1)
     ax1.plot(time, rates, color = 'orange')
     ax1.set_yscale('log')
@@ -626,8 +632,9 @@ def catalog_plots(catalog_pkl):
     plt.xlim([0, time.max()])
     plt.tight_layout()
     
+    # plot event magnitude and event density with time
     plt.sca(ax2)
-    markerline, stemlines, baseline = ax2.stem(time, magnitude)
+    markerline, stemlines, baseline = ax2.stem(time, magnitude, label = 'Events')
     ax2.set_yscale('log')
     ax2.set_xlabel('Time')
     ax2.set_ylabel('Magnitude')
@@ -643,10 +650,56 @@ def catalog_plots(catalog_pkl):
     bin_gauss = gaussian_filter1d(bin_centers, sigma)
     freq_gauss = gaussian_filter1d(frequencies, sigma)
 #    ax3.scatter(bin_centers, frequencies, color = 'black')
-    ax3.plot(bin_gauss, freq_gauss, color = 'black')
+    ax3.plot(bin_gauss, freq_gauss, color = 'black', label = 'Density')
     ax3.set_ylabel('Smoothed event density')
     plt.xlim([0, time.max()])
     
+    # plot magnitude and event density with distance
+    plt.sca(ax4)
+    markerline, stemlines, baseline = ax4.stem(distance, magnitude)
+    ax4.set_yscale('log')
+    ax4.set_xlabel('Distance')
+    ax4.set_ylabel('Magnitude')
+    ax4.set_title('Event magnitude with distance')
+    plt.xlim([0, distance.max()])
     
+    ax5 = ax4.twinx()
+    plt.sca(ax5)
+    plt.grid(False)
+    nbins = int(distance.max()/3.5)
+    bin_centers, frequencies = frequency_by_interval(distance, nbins, density = True)
+    sigma = 1
+    bin_gauss = gaussian_filter1d(bin_centers, sigma)
+    freq_gauss = gaussian_filter1d(frequencies, sigma)
+#    ax3.scatter(bin_centers, frequencies, color = 'black')
+    ax5.plot(bin_gauss, freq_gauss, color = 'black')
+    ax5.set_ylabel('Smoothed event density')
+    plt.xlim([0, distance.max()])
+       
     plt.show()
 
+def k_NN(x, x0, k):
+    """
+    From a list of ordered x values (on some interval [a,b]), get the k nearest neighbours for some point x0 in [a,b] 
+    """
+    # temporary fix for original array being modified, which is not wanted
+    xcopy = x.copy()
+    
+    neighbours = []
+    for j in range(k):
+        x_array = np.array(xcopy)
+        distances = list(np.abs(x_array-x0))
+        i = distances.index(min(distances))
+        neighbours.append(xcopy.pop(i))
+    return neighbours
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
