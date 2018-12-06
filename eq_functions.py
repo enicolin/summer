@@ -23,7 +23,7 @@ class Event:
                self.time,
                self.x,
                self.y,
-               self.distance,
+               self.distance, # distance from parent shock, not main shock necessarily
                self.generation))
 
 def GR_M(M,a,b,Mc):
@@ -364,11 +364,7 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     times = np.random.uniform(t, t+dt, X)
     times = np.sort(times)
     
-    # this is faster than [Event(mgtds[i], times[i], distances[i], thetas[i], gen) for i in range(X)]
-    events = [] 
-    for i in range(X):
-        eventi = Event(mgtds[i], times[i], x[i], y[i], distances[i], gen)
-        events.append(eventi)
+    events = [Event(mgtds[i], times[i], x[i], y[i], distances[i], gen) for i in range(X)]
     
     return events
         
@@ -458,12 +454,12 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         parent_shocks = catalog[catalog.Magnitude > Mc] # get susbet of shocks that are able to create aftershocks
         # base case
         if parent_shocks.empty:
-            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
-                catalog_list.append(catalog[catalog.Magnitude > Mc])
+#            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
+            catalog_list.append(catalog)
             return
         else:
-            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
-                catalog_list.append(catalog[catalog.Magnitude > Mc])
+#            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
+            catalog_list.append(catalog)
             for i in range(np.shape(parent_shocks)[0]):
                 generate_catalog(parent_shocks.iat[i,6],
                                  np.array([parent_shocks.iat[i,4], parent_shocks.iat[i,5]]),
@@ -473,7 +469,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         catalog_list.append(catalog)
         return
 
-def plot_catalog(catalog_list, M0, r0, color = 'Time'):
+def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
@@ -487,10 +483,9 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     fig.set_figheight(8)
     fig.set_figwidth(8)
     ax = fig.add_subplot(111)
-    
-    total_events = 0 # count how many events took place
   
-    catalogs = catalog_list[catalog_list.Magnitude != 0] # extract rows where events took place
+    catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract rows where events took place
+    total_events = len(catalogs) # count how many events took place
     
     if color == 'Time': # formatting for time option
 
@@ -500,12 +495,8 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
         times = catalogs['Time']
         times = np.array(times, dtype = np.float)
         
-#        plt.hist(times, bins = 50) # to see if times obey Omori law
-#        plt.show()
-        
         magnitudes = catalogs['Magnitude']
         magnitudes = np.array(magnitudes, dtype = np.float)
-        total_events += len(magnitudes)
         
         c = times
         cmap = 'Spectral'
@@ -536,7 +527,6 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
             # get magnitudes for size
             magnitudes = catalog['Magnitude']
             magnitudes = np.array(magnitudes, dtype = np.float)
-            total_events += len(magnitudes)
             
             c = np.array(catalog.Generation)[0] # colour is generation
             plt.scatter(x, y,
@@ -548,6 +538,7 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
         lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
+
     elif color == 'Density':
         # display for event density, based off kNN
         
@@ -560,21 +551,19 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
         positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
         xgrid = np.linspace(x.min(), x.max(), npoints)
         ygrid = np.linspace(y.min(), y.max(), npoints)
-        points = [np.array(([xi],[yi])) for xi in xgrid for yi in ygrid]
+        points = [np.array(([xi],[yi])) for yi in ygrid for xi in xgrid] # points at which to sample kNN
         xm, ym = np.meshgrid(xgrid, ygrid)
         density = np.zeros(np.shape(xm))
         p = 0
         for i in range(len(xgrid)):
             for j in range(len(ygrid)):
-                density[i][j] = k/(np.pi * kNN_measure(positions, points[p], k, dim = 2)*2)
+                density[i][j] = 10*k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
                 p += 1
-        plot = plt.contourf(xgrid, ygrid, density, 300, cmap = 'plasma')
-#        plt.xlim([-10, 17])
-#        plt.ylim([-10, 10])
+        plot = plt.contourf(xgrid, ygrid, density, 30, cmap = 'plasma')
         
         cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
         cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
-        
+        cbar.set_label('Event density')
         
     # plot the (initial/parent of all parents) main shock
     ax.scatter(r0[0], r0[1],
@@ -582,15 +571,18 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
            alpha = 1,
            marker = "x")
     
-    ax.set_title('Generated Events ({})'.format(total_events))
     ax.set_ylabel('y position')
     ax.set_xlabel('x position')
     
     # formatting choices depending on whether viewing by aftershock generation/by time
-    if color == 'Generation':
+    if color == "Generation":
         ax.set_facecolor('#1b2330')
-    else:
-        ax.grid(False)
+        ax.set_title('Generated Events ({})'.format(total_events))
+    elif color == "Time":
+        ax.grid(True)
+        ax.set_title('Generated Events ({})'.format(total_events))
+    elif color == "Density":
+        ax.set_title('Event Density by kNN, k = {}'.format(k))
 
     plt.show()
 
@@ -719,7 +711,6 @@ def catalog_plots(catalog_pkl):
     
     ax9 = ax8.twinx()
     plt.sca(ax9)
-#    npoints = 200
     distgrid = np.linspace(distance.min(), distance.max(), npoints)
     dist_list = list(distance)
     kNN_density = np.array([k/kNN_measure(dist_list, di, k) for di in distgrid])
@@ -730,32 +721,41 @@ def catalog_plots(catalog_pkl):
     
     plt.show()
 
-def kNN_measure(x, x0, k, dim = 1):
+def kNN_measure(x, x0, k, dim = 2):
     """
-    From a list of vectors X, get the k nearest neighbours for some point x0 in X
     Inputs:
     x -> list of np.array objects of same dimension or list of scalars
     x0 -> np.array or scalar
     k -> k nearest neighbours
+    dim -> dimension of the vector space of elements in x
     
     Outputs:
-    neighbours -> list of k nearest neighbours to x0
+    measure -> the distance/area spanned by the k nearest neighbours of x0
     """
-    # copy the
+    # copy the x list so it doesn't get modified
     xcopy = x.copy()
     
-    neighbours = []
+#    neighbours = []
+    neighbour_distances = []
     for j in range(k):
         distances = [(np.linalg.norm(xi-x0)) if np.linalg.norm(xi-x0) != 0 else np.inf for xi in xcopy]
         i = distances.index(min(distances)) # argmin{distances}
-        neighbours.append(xcopy.pop(i))
+        neighbour_distances.append(min(distances))
+        xcopy.pop(i)
     if dim == 2:
-        neighbours_shift = [np.linalg.norm(xi - x0) for xi in neighbours] # shift all kNN so that x0 is at the origin
-        measure = max(neighbours_shift)
+        measure = max(neighbour_distances)
 #        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
     elif dim == 1:
-        measure = max(neighbours) - min(neighbours)
+        measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     return measure
+
+def plot_ED(catalogs_raw):
+    """
+    Plot event density w.r.t distance from main shock.
+    Calculates areal densities by k-NN binning 
+    """
+    
+    catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
     
     
     

@@ -34,14 +34,14 @@ gen = 0 # initial generation
 #
 #catalogs = pd.concat(catalog_list)
 #catalogs.to_pickle('catalogs.pkl')
-#
-#
+
+
 # read in catalog and plot
 catalogs_raw = pd.read_pickle('catalogs.pkl') # read in .pkl file storing dataframe generated above
 
 # plot catalog
-eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
-#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Time')
+#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
+eq.plot_catalog(catalogs_raw, M0, r0, color = 'Generation')
 
 
 print(datetime.now() - start)
