@@ -23,20 +23,25 @@ M0 = 6. # magnitude of initial earthquake
 A = 1.1 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 alpha = 1.3 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 
-#prms = pd.Series([Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin],
-#                 index = ['Tf','M0','A','alpha','b','c','cprime','p','pprime','Mc','smin'])
-
-
-# generate catalog
-catalog_list = []
 t0 = 0 # time of main shock
 r0 = np.array([0,0]) # x,y coord. of main shock
 gen = 0 # initial generation
-eq.generate_catalog(t0, r0, catalog_list, gen, True,
-                    Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin)
+
+# generate catalog and save
+#catalog_list = []
+#eq.generate_catalog(t0, r0, catalog_list, gen, True,
+#                    Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin)
+#
+#catalogs = pd.concat(catalog_list)
+#catalogs.to_pickle('catalogs.pkl')
+#
+
+# read in catalog and plot
+catalogs_raw = pd.read_pickle('catalogs.pkl') # read in .pkl file storing dataframe generated above
 
 # plot catalog
-eq.plot_catalog(catalog_list, M0, r0, color = 'Time')
-eq.plot_catalog(catalog_list, M0, r0, color = 'Generation')
+eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
+#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Generation')
+
 
 print(datetime.now() - start)

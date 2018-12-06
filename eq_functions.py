@@ -397,27 +397,15 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
     gen -> variable to keep track of aftershock generation
     """
     
-    # define parameters as local variables so that Series doesn't have to be accessed multiple times
-#    A = prms['A']
-#    alpha = prms['alpha']
-#    M0 = prms['M0']
-#    Mc = prms['Mc']
+    # derived parameters
     Nt = A*np.exp(alpha*(M0 - Mc))
-#    Tf = prms['Tf']
     a = np.log10(Nt)
-#    b = prms['b']
-#    c = prms['c']
-#    cprime = prms['cprime']
-#    p = prms['p']
-#    pprime = prms['pprime']
-#    smin = prms['smin'] # minimum seismicity allowable on an interval so that it doesn't get too small
     k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
     
     # intended column order
     cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time']
     events_occurred = 0 # number of earthquakes generated 
     t = t0
-#    r = r0
     while t < Tf: # iterate until reached end of forecast period
         dt = (-1/k * smin*(p-1) + (c+t)**(1-p))**(-1/(p-1)) - c - t # update time increment - set up so that seismicity is equal to smin at each interval
         if t + dt > Tf: # if time increment goes over forecast period
@@ -476,9 +464,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         else:
             if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
                 catalog_list.append(catalog[catalog.Magnitude > Mc])
-#            prms_child = prms.copy() # create copy of parameters to be modified for next generation of shocks
             for i in range(np.shape(parent_shocks)[0]):
-#                prms_child.M0 = parent_shocks.iat[i,2] # main shock
                 generate_catalog(parent_shocks.iat[i,6],
                                  np.array([parent_shocks.iat[i,4], parent_shocks.iat[i,5]]),
                                  catalog_list, gen+1, recursion,
@@ -491,7 +477,7 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
-     catalog_list -> output list of pandas DataFrames from generate_catalog
+     catalog_list -> concatenated output list of pandas DataFrames from generate_catalog
      M0 -> main shock magnitude
      color -> color scheme of events
                'Time' - default, colours events by time of occurrence
@@ -503,14 +489,13 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     ax = fig.add_subplot(111)
     
     total_events = 0 # count how many events took place
-
-    catalogs = pd.concat(catalog_list) # concatenate list of catalogs into one large dataframe     
-    catalogs = catalogs[catalogs.Magnitude != 0] # extract rows where events took place
+  
+    catalogs = catalog_list[catalog_list.Magnitude != 0] # extract rows where events took place
     
     if color == 'Time': # formatting for time option
 
-        x = catalogs['x']#dist * np.cos(theta)
-        y = catalogs['y']#dist * np.sin(theta)
+        x = catalogs['x']
+        y = catalogs['y']
 
         times = catalogs['Time']
         times = np.array(times, dtype = np.float)
@@ -563,7 +548,34 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
         lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
-    
+    elif color == 'Density':
+        # display for event density, based off kNN
+        
+        x = np.array(catalogs['x'])
+        y = np.array(catalogs['y'])
+        
+        # need a list of vectors for position
+        npoints = 100
+        k = 3
+        positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
+        xgrid = np.linspace(x.min(), x.max(), npoints)
+        ygrid = np.linspace(y.min(), y.max(), npoints)
+        points = [np.array(([xi],[yi])) for xi in xgrid for yi in ygrid]
+        xm, ym = np.meshgrid(xgrid, ygrid)
+        density = np.zeros(np.shape(xm))
+        p = 0
+        for i in range(len(xgrid)):
+            for j in range(len(ygrid)):
+                density[i][j] = k/(np.pi * kNN_measure(positions, points[p], k, dim = 2))
+                p += 1
+        plot = plt.contourf(xgrid, ygrid, density, 300, cmap = 'coolwarm')
+        plt.xlim([-10, 17])
+        plt.ylim([-10, 10])
+        
+        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
+        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
+        
+        
     # plot the (initial/parent of all parents) main shock
     ax.scatter(r0[0], r0[1],
            c = '#21ff60',
@@ -576,10 +588,9 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
     
     # formatting choices depending on whether viewing by aftershock generation/by time
     if color == 'Generation':
-#        ax.set_facecolor('#1b2330')
-        pass
+        ax.set_facecolor('#1b2330')
     else:
-        ax.grid(True)
+        ax.grid(False)
 
     plt.show()
 
@@ -620,7 +631,7 @@ def catalog_plots(catalog_pkl):
     edges = np.concatenate((np.array([0]),time + dt))
     rates = [1/(edges[i]-edges[i-1]) for i in range(1,len(time)+1)]
     
-    f, (ax1, ax2, ax4) = plt.subplots(3, figsize=(9,6))
+    f, (ax1, ax2, ax4, ax6, ax8) = plt.subplots(5, figsize=(9,15))
     
     # plot seismicity rate
     plt.sca(ax1)
@@ -649,7 +660,6 @@ def catalog_plots(catalog_pkl):
     sigma = 1
     bin_gauss = gaussian_filter1d(bin_centers, sigma)
     freq_gauss = gaussian_filter1d(frequencies, sigma)
-#    ax3.scatter(bin_centers, frequencies, color = 'black')
     ax3.plot(bin_gauss, freq_gauss, color = 'black', label = 'Density')
     ax3.set_ylabel('Smoothed event density')
     plt.xlim([0, time.max()])
@@ -662,36 +672,87 @@ def catalog_plots(catalog_pkl):
     ax4.set_ylabel('Magnitude')
     ax4.set_title('Event magnitude with distance')
     plt.xlim([0, distance.max()])
+    plt.setp(stemlines, color = 'g')
+    plt.setp(markerline, color = 'g')
     
     ax5 = ax4.twinx()
     plt.sca(ax5)
     plt.grid(False)
     nbins = int(distance.max()/3.5)
     bin_centers, frequencies = frequency_by_interval(distance, nbins, density = True)
-    sigma = 1
+    sigma = 0.8
     bin_gauss = gaussian_filter1d(bin_centers, sigma)
     freq_gauss = gaussian_filter1d(frequencies, sigma)
-#    ax3.scatter(bin_centers, frequencies, color = 'black')
     ax5.plot(bin_gauss, freq_gauss, color = 'black')
     ax5.set_ylabel('Smoothed event density')
     plt.xlim([0, distance.max()])
-       
+    
+    # plot k nearest neighbour density for time
+    k = 5 # number of nearest neighbours
+    plt.sca(ax6)
+    markerline, stemlines, baseline = ax6.stem(time, magnitude, label = 'Events')
+    ax6.set_yscale('log')
+    ax6.set_xlabel('Time')
+    ax6.set_ylabel('Magnitude')
+    ax6.set_title('Event magnitude with time - kNN event density, k = {}'.format(k))
+    plt.xlim([0, time.max()])
+    
+    ax7 = ax6.twinx()
+    npoints = 200
+    timegrid = np.linspace(time.min(), time.max(), npoints)
+    time_list = list(time)
+    kNN_density = np.array([k/kNN_measure(time_list, ti, k) for ti in timegrid])
+    ax7.plot(timegrid, kNN_density, color = 'red')
+    ax7.set_ylabel('Event density')
+    
+    # plot k nearest neighbour density for distance
+    k = 5 # number of nearest neighbours
+    plt.sca(ax8)
+    markerline, stemlines, baseline = ax8.stem(distance, magnitude, label = 'Events')
+    ax8.set_yscale('log')
+    ax8.set_xlabel('Distance')
+    ax8.set_ylabel('Magnitude')
+    ax8.set_title('Event magnitude with distance - kNN event density, k = {}'.format(k))
+    plt.xlim([0, time.max()])
+    plt.setp(stemlines, color = 'g')
+    plt.setp(markerline, color = 'g')
+    
+    ax9 = ax8.twinx()
+    plt.sca(ax9)
+#    npoints = 200
+    distgrid = np.linspace(distance.min(), distance.max(), npoints)
+    dist_list = list(distance)
+    kNN_density = np.array([k/kNN_measure(dist_list, di, k) for di in distgrid])
+    ax9.plot(distgrid, kNN_density, color = 'red')
+    ax9.set_ylabel('Event density')
+    
+    
     plt.show()
 
-def k_NN(x, x0, k):
+def kNN_measure(x, x0, k, dim = 1):
     """
-    From a list of ordered x values (on some interval [a,b]), get the k nearest neighbours for some point x0 in [a,b] 
+    From a list of vectors X, get the k nearest neighbours for some point x0 in X
+    Inputs:
+    x -> list of np.array objects of same dimension or list of scalars
+    x0 -> np.array or scalar
+    k -> k nearest neighbours
+    
+    Outputs:
+    neighbours -> list of k nearest neighbours to x0
     """
-    # temporary fix for original array being modified, which is not wanted
+    # copy the
     xcopy = x.copy()
     
     neighbours = []
     for j in range(k):
-        x_array = np.array(xcopy)
-        distances = list(np.abs(x_array-x0))
-        i = distances.index(min(distances))
+        distances = [(np.linalg.norm(xi-x0)) if np.linalg.norm(xi-x0) != 0 else np.inf for xi in xcopy]
+        i = distances.index(min(distances)) # argmin{distances}
         neighbours.append(xcopy.pop(i))
-    return neighbours
+    if dim == 1:
+        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
+    elif dim == 2:
+        measure = max(np.linalg.norm(xi-x0) for xi in neighbours)
+    return measure
     
     
     
