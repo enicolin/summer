@@ -556,7 +556,7 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
         
         # need a list of vectors for position
         npoints = 100
-        k = 3
+        k = 2
         positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
         xgrid = np.linspace(x.min(), x.max(), npoints)
         ygrid = np.linspace(y.min(), y.max(), npoints)
@@ -566,11 +566,11 @@ def plot_catalog(catalog_list, M0, r0, color = 'Time'):
         p = 0
         for i in range(len(xgrid)):
             for j in range(len(ygrid)):
-                density[i][j] = k/(np.pi * kNN_measure(positions, points[p], k, dim = 2))
+                density[i][j] = k/(np.pi * kNN_measure(positions, points[p], k, dim = 2)*2)
                 p += 1
-        plot = plt.contourf(xgrid, ygrid, density, 300, cmap = 'coolwarm')
-        plt.xlim([-10, 17])
-        plt.ylim([-10, 10])
+        plot = plt.contourf(xgrid, ygrid, density, 300, cmap = 'plasma')
+#        plt.xlim([-10, 17])
+#        plt.ylim([-10, 10])
         
         cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
         cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
@@ -688,7 +688,7 @@ def catalog_plots(catalog_pkl):
     plt.xlim([0, distance.max()])
     
     # plot k nearest neighbour density for time
-    k = 5 # number of nearest neighbours
+    k = 9 # number of nearest neighbours
     plt.sca(ax6)
     markerline, stemlines, baseline = ax6.stem(time, magnitude, label = 'Events')
     ax6.set_yscale('log')
@@ -704,9 +704,9 @@ def catalog_plots(catalog_pkl):
     kNN_density = np.array([k/kNN_measure(time_list, ti, k) for ti in timegrid])
     ax7.plot(timegrid, kNN_density, color = 'red')
     ax7.set_ylabel('Event density')
+    ax7.set_yscale('log')
     
     # plot k nearest neighbour density for distance
-    k = 5 # number of nearest neighbours
     plt.sca(ax8)
     markerline, stemlines, baseline = ax8.stem(distance, magnitude, label = 'Events')
     ax8.set_yscale('log')
@@ -725,6 +725,7 @@ def catalog_plots(catalog_pkl):
     kNN_density = np.array([k/kNN_measure(dist_list, di, k) for di in distgrid])
     ax9.plot(distgrid, kNN_density, color = 'red')
     ax9.set_ylabel('Event density')
+    ax9.set_yscale('log')
     
     
     plt.show()
@@ -748,10 +749,12 @@ def kNN_measure(x, x0, k, dim = 1):
         distances = [(np.linalg.norm(xi-x0)) if np.linalg.norm(xi-x0) != 0 else np.inf for xi in xcopy]
         i = distances.index(min(distances)) # argmin{distances}
         neighbours.append(xcopy.pop(i))
-    if dim == 1:
-        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
-    elif dim == 2:
-        measure = max(np.linalg.norm(xi-x0) for xi in neighbours)
+    if dim == 2:
+        neighbours_shift = [np.linalg.norm(xi - x0) for xi in neighbours] # shift all kNN so that x0 is at the origin
+        measure = max(neighbours_shift)
+#        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
+    elif dim == 1:
+        measure = max(neighbours) - min(neighbours)
     return measure
     
     
