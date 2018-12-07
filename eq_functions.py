@@ -454,15 +454,14 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         parent_shocks = catalog[catalog.Magnitude > Mc] # get susbet of shocks that are able to create aftershocks
         # base case
         if parent_shocks.empty:
-#            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
             catalog_list.append(catalog)
             return
         else:
-#            if not catalog[catalog.Magnitude != 0].empty: # only append to catalog list if current catalog contains events > Mc
             catalog_list.append(catalog)
             for i in range(np.shape(parent_shocks)[0]):
-                generate_catalog(parent_shocks.iat[i,6],
-                                 np.array([parent_shocks.iat[i,4], parent_shocks.iat[i,5]]),
+                r_parent = np.array([parent_shocks.iat[i,4], parent_shocks.iat[i,5]]) # parent shock position (x,y)
+                generate_catalog(parent_shocks.iat[i,7],
+                                 r_parent,
                                  catalog_list, gen+1, recursion,
                                  Tf,parent_shocks.iat[i,2],A,alpha,b,c,cprime,p,pprime,Mc,smin)
     else:
@@ -557,7 +556,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
         p = 0
         for i in range(len(xgrid)):
             for j in range(len(ygrid)):
-                density[i][j] = 10*k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
+                density[i][j] = k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
                 p += 1
         plot = plt.contourf(xgrid, ygrid, density, 30, cmap = 'plasma')
         
@@ -749,17 +748,34 @@ def kNN_measure(x, x0, k, dim = 2):
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     return measure
 
-def plot_ED(catalogs_raw):
-    """
-    Plot event density w.r.t distance from main shock.
-    Calculates areal densities by k-NN binning 
-    """
-    
-    catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
-    
-    
-    
-    
+#    xset = x.copy()
+#    
+##    neighbours = []
+#    neighbour_distances = []
+#    for j in range(k):
+#        distances = [(np.linalg.norm(xi-x0), xi) if np.linalg.norm(xi-x0) != 0 else np.inf for xi in xset] # store list of tuple (||x0 - xi||, xi) 
+#        min_dist, neighbour = min(distances, key = lambda t: t[0]) # get the smallest distance and neighbour corrresponding to it
+#        neighbour_distances.append(min_dist)
+#        xset.remove(neighbour)
+#    if dim == 2:
+#        measure = max(neighbour_distances)
+##        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
+#    elif dim == 1:
+#        measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
+#    return measure
+
+
+#def plot_ED(catalogs_raw):
+#    """
+#    Plot event density w.r.t distance from main shock.
+#    Calculates areal densities by k-NN binning 
+#    """
+#    
+#    catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
+#    
+#    
+#    x = 
+#    
     
     
     
