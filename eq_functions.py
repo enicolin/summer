@@ -8,12 +8,13 @@ from scipy.ndimage.filters import gaussian_filter1d
 class Event:
     '''Earthquake class'''
     
-    def __init__(self, magnitude, time, x, y, dist, gen):
+    def __init__(self, magnitude, time, x, y, dist, dist_from_origin, gen):
         self.magnitude = magnitude
         self.time = time
         self.x = x
         self.y = y
         self.distance = dist
+        self.distance_from_origin = dist_from_origin
         self.generation = gen
     
     def __repr__(self):
@@ -24,6 +25,7 @@ class Event:
                self.x,
                self.y,
                self.distance, # distance from parent shock, not main shock necessarily
+               self.distance_from_origin,
                self.generation))
 
 def GR_M(M,a,b,Mc):
@@ -295,7 +297,7 @@ def sample_location(n,c,p):
     
     locations = np.zeros(n) # initialise 
     for i in range(n):
-        ui = rnd.uniform(0,0.95) # pseudorandom number on [0,1] from a uniform distribution
+        ui = rnd.uniform(0,1) # pseudorandom number on [0,1] from a uniform distribution
         locations[i] = omori_spatial_inverse(ui,p,c)
         
     return locations
@@ -353,7 +355,7 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     else:
         mgtds = sample_magnitudes(X, Mc, b)
     
-    # assign distances according to spatial Omori (with random azimuth angle)
+    # assign distances from parent shock according to spatial Omori (with random azimuth angle)
     distances = sample_location(X, cprime, pprime)
     thetas = np.random.uniform(0, 2*np.pi, X)
     
@@ -364,7 +366,9 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     times = np.random.uniform(t, t+dt, X)
     times = np.sort(times)
     
-    events = [Event(mgtds[i], times[i], x[i], y[i], distances[i], gen) for i in range(X)]
+    dist_to_origin = (x**2 + y**2)**0.5
+    
+    events = [Event(mgtds[i], times[i], x[i], y[i], distances[i], dist_to_origin[i], gen) for i in range(X)]
     
     return events
         
@@ -391,6 +395,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
     r0 -> initial position np.array([x,y])
     catalog_list -> empty list to be populated with generated aftershock catalogs
     gen -> variable to keep track of aftershock generation
+    recursion -> Boolean
     """
     
     # derived parameters
@@ -399,7 +404,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
     k = 10**a * (1-p)/((c+Tf)**(1-p) - c**(1-p)) # k from Omori -needed for adaptive time increment
     
     # intended column order
-    cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time']
+    cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin']
     events_occurred = 0 # number of earthquakes generated 
     t = t0
     while t < Tf: # iterate until reached end of forecast period
@@ -428,7 +433,8 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
                                    'Distance':[event.distance for event in events],
                                    'x':[event.x for event in events],
                                    'y':[event.y for event in events],
-                                   'Generation':[event.generation for event in events]}, index = interval)
+                                   'Generation':[event.generation for event in events],
+                                   'Distance_from_origin': [event.distance_from_origin for event in events]}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         else: # formatting for when there are no events during a time interval
             interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)]
@@ -439,7 +445,8 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
                                       'Distance':['-'],
                                       'x':['-'],
                                       'y':['-'],
-                                      'Generation':['-']}, index = interval)
+                                      'Generation':['-'],
+                                      'Distance_from_origin':['-']}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
         if t == t0:
             catalog = catalog_update
@@ -729,7 +736,7 @@ def kNN_measure(x, x0, k, dim = 2):
     dim -> dimension of the vector space of elements in x
     
     Outputs:
-    measure -> the distance/area spanned by the k nearest neighbours of x0
+    measure -> the distance/radius spanned by the k nearest neighbours of x0
     """
     # copy the x list so it doesn't get modified
     xcopy = x.copy()
@@ -765,17 +772,35 @@ def kNN_measure(x, x0, k, dim = 2):
 #    return measure
 
 
-#def plot_ED(catalogs_raw):
-#    """
-#    Plot event density w.r.t distance from main shock.
-#    Calculates areal densities by k-NN binning 
-#    """
-#    
-#    catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
-#    
-#    
-#    x = 
-#    
+def plot_ED(catalogs_raw):
+    """
+    Plot event density w.r.t distance from main shock.
+    Calculates areal densities by k-NN binning 
+    """
+    
+    catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
+    catalogs = catalogs.sort_values(by = ['Distance_from_origin']) # sort by distance
+    
+    x = catalogs.x
+    y = catalogs.y
+    distance = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
+    n = len(distance) # total number of events
+    
+    # get positions as list of numpy vectors
+    positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
+    k = 4 # number of nearest neighbours to use
+    density = np.array([k / (2 * n * kNN_measure(positions, event, k)) for event in positions], dtype = float) # get the kNN density for each event
+    
+    
+    f, ax = plt.subplots(1, figsize=(7,6))
+    ax.plot(distance, density, 'o')
+    ax.set_yscale('log')
+    ax.set_xlabel('distance from main shock')
+    ax.set_ylabel('event density')
+    ax.set_ylim(0,density.max())
+    ax.set_xscale('log')
+    plt.show()
+    
     
     
     

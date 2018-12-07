@@ -19,7 +19,7 @@ p = 1.1
 pprime = 1.8
 Mc = 2.
 smin = 0.5 # minimum seismicity allowable on an interval so that it doesn't get too small
-M0 = 6. # magnitude of initial earthquake
+M0 = 5.7 # magnitude of initial earthquake
 A = 1.1 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 alpha = 1.4 # parameter included in law for generating expected aftershocks given main shock magnitude M0
 
@@ -42,6 +42,8 @@ catalogs_raw = pd.read_pickle('catalogs.pkl') # read in .pkl file storing datafr
 # plot catalog
 #eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
 eq.plot_catalog(catalogs_raw, M0, r0, color = 'Generation')
+
+eq.plot_ED(catalogs_raw)
 
 
 print(datetime.now() - start)
