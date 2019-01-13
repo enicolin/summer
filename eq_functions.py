@@ -419,7 +419,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         X = len(events)
 
         # store results in dataframe
-        if X != 0:
+        if X is not 0:
             interval = ['Interval: [{:.3f},{:.3f}]'.format(t,t+dt)] * X 
             # create dataframe using dict of objects
             Xcol = [''] * X # only include number of events on first row
@@ -448,7 +448,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
                                       'Generation':['-'],
                                       'Distance_from_origin':['-']}, index = interval)
             catalog_update = catalog_update.reindex(columns = cols)
-        if t == t0:
+        if t is t0:
             catalog = catalog_update
         else:
             frames = [catalog, catalog_update]
@@ -623,7 +623,7 @@ def catalog_plots(catalog_pkl):
     magnitude = np.array(catalogs.Magnitude)
     distance = np.array(catalogs.Distance)
     
-    dt = np.array([np.abs(i-j) for i in time for j in time if i != j]).min()
+    dt = np.array([np.abs(i-j) for i in time for j in time if i is not j]).min()
     dt = 0.95 * dt
     
     edges = np.concatenate((np.array([0]),time + dt))
@@ -744,7 +744,7 @@ def kNN_measure(x, x0, k, dim = 2):
 #    neighbours = []
     neighbour_distances = []
     for j in range(k):
-        distances = [(np.linalg.norm(xi-x0)) if np.linalg.norm(xi-x0) != 0 else np.inf for xi in xcopy]
+        distances = [(np.linalg.norm(xi-x0)) if xi is not x0 else np.inf for xi in xcopy]
         i = distances.index(min(distances)) # argmin{distances}
         neighbour_distances.append(min(distances))
         xcopy.pop(i)
