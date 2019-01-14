@@ -27,21 +27,21 @@ t0 = 0 # time of main shock
 r0 = np.array([0,0]) # x,y coord. of main shock
 gen = 0 # initial generation
 
-# generate catalog and save
-catalog_list = []
-eq.generate_catalog(t0, r0, catalog_list, gen, True,
-                    Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin)
+## generate catalog and save
+#catalog_list = []
+#eq.generate_catalog(t0, r0, catalog_list, gen, True,
+#                    Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin)
 
-catalogs = pd.concat(catalog_list)
-catalogs.to_pickle('catalogs.pkl')
+#catalogs = pd.concat(catalog_list)
+#catalogs.to_pickle('catalogs.pkl')
 
 
 # read in catalog and plot
 catalogs_raw = pd.read_pickle('catalogs.pkl') # read in .pkl file storing dataframe generated above
 
 # plot catalog
-#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
-eq.plot_catalog(catalogs_raw, M0, r0, color = 'Time')
+##eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
+#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Time')
 
 eq.plot_ED(catalogs_raw)
 
