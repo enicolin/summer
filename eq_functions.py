@@ -19,7 +19,7 @@ class Event:
     
     def __repr__(self):
         '''Returns string representation of Event'''
-        return("{}({},{},{},{},{})".format(self.__class__.__name__,
+        return("{}(mgn = {}, time = {}, x = {}, y = {}, dst = {}, dst_frn_orgn = {}, gen = {})".format(self.__class__.__name__,
                self.magnitude,
                self.time,
                self.x,
@@ -772,10 +772,13 @@ def kNN_measure(x, x0, k, dim = 2):
 #    return measure
 
 
-def plot_ED(catalogs_raw):
+def plot_ED(catalogs_raw, k = 4):
     """
     Plot event density w.r.t distance from main shock.
-    Calculates areal densities by k-NN binning 
+    Calculates densities by k-NN binning
+    
+    Inputs:
+    catalogs_raw -> Pandas DataFrame event catalog
     """
     
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
@@ -788,17 +791,17 @@ def plot_ED(catalogs_raw):
     
     # get positions as list of numpy vectors
     positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
-    k = 4 # number of nearest neighbours to use
+#    k = 3 # number of nearest neighbours to use
     density = np.array([k / (2 * n * kNN_measure(positions, event, k)) for event in positions], dtype = float) # get the kNN density for each event
     
     
     f, ax = plt.subplots(1, figsize=(7,6))
     ax.plot(distance, density, 'o')
-    ax.set_yscale('log')
+    ax.set_yscale('log', nonposy = 'clip')
     ax.set_xlabel('distance from main shock')
     ax.set_ylabel('event density')
     ax.set_ylim(0,density.max())
-    ax.set_xscale('log')
+    ax.set_xscale('log', nonposx = 'clip')
     plt.show()
     
     
