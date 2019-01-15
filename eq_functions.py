@@ -786,9 +786,21 @@ def plot_ED(catalogs_raw, k = 4):
     ax.set_xscale('log', nonposx = 'clip')
     plt.show()
     
+def hav(lat1,lat2,long1,long2):
+    '''
+    Determine the haversine of the central angle between two points on a sphere given as latitudes and longitudes
+    '''
+    return 0.5*(1-np.cos(lat2-lat1)) + np.cos(lat1)*np.cos(lat2)*0.5*(1-np.cos(long2-long1))
     
+def gcdist(R,lat1,lat2,long1,long2, deg = True):
+    '''
+    Returns the great circle distance between two points on a sphere, given their latitude and longitudes, and radius of sphere
+    '''
     
+    if deg:
+        lat1, lat2, long1, long2 = lat1*np.pi/180, lat2*np.pi/180, long1*np.pi/180, long2*np.pi/180
     
+    return 2*R*np.arcsin((hav(lat1,lat2,long1,long2))**0.5)
     
     
     
