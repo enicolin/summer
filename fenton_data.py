@@ -4,7 +4,6 @@ Created on Mon Jan 14 12:04:32 2019
 
 @author: enic156
 """
-import matplotlib.pyplot as plt
 import eq_functions as eq
 import pandas as pd
 from datetime import datetime
@@ -50,8 +49,4 @@ catalog['Distance_from_origin'] = (catalog.x**2 + catalog.y**2)**0.5
 eq.plot_catalog(catalog, 2, np.array([0,0]), color = 'Generation')
 eq.plot_ED(catalog)
     
-#    times.append(datetime.now().timestamp() - start.timestamp())
 print(datetime.now().timestamp() - start.timestamp())
-
-#plt.plot(K, times)
-#plt.show()

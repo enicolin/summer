@@ -40,8 +40,8 @@ gen = 0 # initial generation
 catalogs_raw = pd.read_pickle('catalogs.pkl') # read in .pkl file storing dataframe generated above
 
 # plot catalog
-##eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
-#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Time')
+#eq.plot_catalog(catalogs_raw, M0, r0, color = 'Density')
+eq.plot_catalog(catalogs_raw, M0, r0, color = 'Time')
 
 eq.plot_ED(catalogs_raw)
 
