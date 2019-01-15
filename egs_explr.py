@@ -10,7 +10,7 @@ import pandas as pd
 import random
 
 k = 2000 # max number of events considered
-fname = 'bradys.txt'
+fname = 'raft_river.txt'
 f = open(fname, 'r')
 flines = f.readlines()
 if len(flines) > k:
