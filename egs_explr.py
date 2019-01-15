@@ -20,6 +20,8 @@ if len(flines) > k:
 # get longitudes and latitudes
 lats = [float(event.split()[7]) for event in flines]
 longs = [float(event.split()[8]) for event in flines]
+
+# simplify this, no need for dataframes..
 latlong = pd.DataFrame({'latitude':lats, 'longitude': longs})
 lat_mean = latlong.describe().loc['mean'].loc['latitude']
 long_mean = latlong.describe().loc['mean'].loc['longitude']
@@ -29,7 +31,7 @@ r = 6.3781e6 # earth radius in m
 # NOTES:
 # latitude and longitude are converted to rectangular coordinates by
 # projecting the sines of the lat. and long. on to the plane tangent to the point of mean lat. and long.
-events = [eq.Event(float(event.split()[10]), '-', r*np.sin(np.pi/180*(float(event.split()[8])-long_mean)), r*np.sin(np.pi/180*(float(event.split()[7])-lat_mean)), '-', ((r*np.sin(np.pi/180*(float(event.split()[7])-lat_mean)))**2+(r*np.sin(np.pi/180*(float(event.split()[8])-long_mean)))**2)**0.5, 0) for event in flines]
+events = [eq.Event(float(event.split()[10]), '-', r*np.sin(np.pi/180*(float(event.split()[8])-long_mean)), r*np.sin(np.pi/180*(float(event.split()[7])-lat_mean)), '-', eq.gcdist(r,float(event.split()[7]),lat_mean,float(event.split()[8]),long_mean), 0) for event in flines]
 
 f.close()
 
