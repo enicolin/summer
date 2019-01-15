@@ -755,23 +755,6 @@ def kNN_measure(x, x0, k, dim = 2):
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     return measure
 
-#    xset = x.copy()
-#    
-##    neighbours = []
-#    neighbour_distances = []
-#    for j in range(k):
-#        distances = [(np.linalg.norm(xi-x0), xi) if np.linalg.norm(xi-x0) != 0 else np.inf for xi in xset] # store list of tuple (||x0 - xi||, xi) 
-#        min_dist, neighbour = min(distances, key = lambda t: t[0]) # get the smallest distance and neighbour corrresponding to it
-#        neighbour_distances.append(min_dist)
-#        xset.remove(neighbour)
-#    if dim == 2:
-#        measure = max(neighbour_distances)
-##        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
-#    elif dim == 1:
-#        measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
-#    return measure
-
-
 def plot_ED(catalogs_raw, k = 4):
     """
     Plot event density w.r.t distance from main shock.
@@ -791,7 +774,6 @@ def plot_ED(catalogs_raw, k = 4):
     
     # get positions as list of numpy vectors
     positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
-#    k = 3 # number of nearest neighbours to use
     density = np.array([k / (2 * n * kNN_measure(positions, event, k)) for event in positions], dtype = float) # get the kNN density for each event
     
     
