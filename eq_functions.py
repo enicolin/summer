@@ -4,6 +4,7 @@ from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
+from scipy.interpolate import UnivariateSpline
 
 class Event:
     '''Earthquake class'''
@@ -755,7 +756,7 @@ def kNN_measure(x, x0, k, dim = 2):
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     return measure
 
-def plot_ED(catalogs_raw, k = 4):
+def plot_ED(catalogs_raw, xy, k = 4):
     """
     Plot event density w.r.t distance from main shock.
     Calculates densities by k-NN binning
@@ -776,16 +777,25 @@ def plot_ED(catalogs_raw, k = 4):
     positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
     density = np.array([k / (2 * n * kNN_measure(positions, event, k)) for event in positions], dtype = float) # get the kNN density for each event
     
-    
     f, ax = plt.subplots(1, figsize=(7,6))
     ax.plot(distance, density, 'o')
-    ax.set_yscale('log', nonposy = 'clip')
+    ax.set_yscale('log')#, nonposy = 'clip')
     ax.set_xlabel('distance from main shock')
     ax.set_ylabel('event density')
     ax.set_ylim(0,density.max())
-    ax.set_xscale('log', nonposx = 'clip')
-    plt.show()
+    ax.set_xscale('log')#, nonposx = 'clip')
     
+    xy[0] = distance
+    xy[1] = density
+    
+#    logdistance = np.log(distance)
+#    logdensity = np.log(density)
+#    h = 8# bandwidth
+#    print(h)
+#    dens_smooth = gaussian_filter1d(logdensity, h)
+#    plt.plot(np.exp(logdistance), np.exp(dens_smooth))    
+#    plt.show()
+#    
 def hav(lat1,lat2,long1,long2):
     '''
     Determine the haversine of the central angle between two points on a sphere given as latitudes and longitudes
@@ -802,6 +812,11 @@ def gcdist(R,lat1,lat2,long1,long2, deg = True):
     
     return 2*R*np.arcsin((hav(lat1,lat2,long1,long2))**0.5)
     
-    
-    
+def gauss_kernel(xi):
+    def kde_estimate(x):
+        n = len(xi)
+        h = 4 # bandwidth
+        b = max(xi) - min(xi)
+        return np.sum(np.exp(-(x-xi)**2/(2*b**2)))/(n*h)
+    return kde_estimate
     
