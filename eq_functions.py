@@ -4,7 +4,7 @@ from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
-from scipy.interpolate import UnivariateSpline
+#from itertools import compress
 
 class Event:
     '''Earthquake class'''
@@ -591,7 +591,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
     elif color == "Density":
         ax.set_title('Event Density by kNN, k = {}'.format(k))
 
-    plt.show()
+    plt.savefig('newberry.png',dpi=400)
 
 def frequency_by_interval(x, nbins, density = False):
     """
@@ -750,15 +750,20 @@ def kNN_measure(x, x0, k, dim = 2):
         neighbour_distances.append(min(distances))
         xcopy.pop(i)
     if dim == 2:
+#        # remove any inf or nan
+#        keep = [not(i == np.nan or i == np.inf) for i in neighbour_distances]
+#        if False in keep:
+#            neighbour_distances = compress(neighbour_distances, keep)
         measure = max(neighbour_distances)
-#        measure = max(np.linalg.norm(xi-xj) for xi in neighbours for xj in neighbours)
+        if measure == 0: # temporary
+            measure = 0.1
     elif dim == 1:
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     return measure
 
-def plot_ED(catalogs_raw, xy, k = 4):
+def plot_ED(catalogs_raw, k = 4, plot = True):
     """
-    Plot event density w.r.t distance from main shock.
+    Plot event density w.r.t distance from main shock. Also returns distance and density (x,y)
     Calculates densities by k-NN binning
     
     Inputs:
@@ -775,26 +780,20 @@ def plot_ED(catalogs_raw, xy, k = 4):
     
     # get positions as list of numpy vectors
     positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
-    density = np.array([k / (2 * n * kNN_measure(positions, event, k)) for event in positions], dtype = float) # get the kNN density for each event
+    density = np.array([k / (2 * n * kNN_measure(positions, event, k))  for event in positions], dtype = float) # get the kNN density for each event
     
-    f, ax = plt.subplots(1, figsize=(7,6))
-    ax.plot(distance, density, 'o')
-    ax.set_yscale('log')#, nonposy = 'clip')
-    ax.set_xlabel('distance from main shock')
-    ax.set_ylabel('event density')
-    ax.set_ylim(0,density.max())
-    ax.set_xscale('log')#, nonposx = 'clip')
+    if plot:
+        f, ax = plt.subplots(1, figsize=(7,6))
+        ax.plot(distance, density, 'o')
+        ax.set_yscale('log')#, nonposy = 'clip')
+        ax.set_xlabel('distance from main shock')
+        ax.set_ylabel('event density')
+        ax.set_ylim(0,density.max())
+        ax.set_xscale('log')#, nonposx = 'clip')
+        plt.show()
     
-    xy[0] = distance
-    xy[1] = density
+    return distance, density
     
-#    logdistance = np.log(distance)
-#    logdensity = np.log(density)
-#    h = 8# bandwidth
-#    print(h)
-#    dens_smooth = gaussian_filter1d(logdensity, h)
-#    plt.plot(np.exp(logdistance), np.exp(dens_smooth))    
-#    plt.show()
 #    
 def hav(lat1,lat2,long1,long2):
     '''
@@ -811,12 +810,5 @@ def gcdist(R,lat1,lat2,long1,long2, deg = True):
         lat1, lat2, long1, long2 = lat1*np.pi/180, lat2*np.pi/180, long1*np.pi/180, long2*np.pi/180
     
     return 2*R*np.arcsin((hav(lat1,lat2,long1,long2))**0.5)
-    
-def gauss_kernel(xi):
-    def kde_estimate(x):
-        n = len(xi)
-        h = 4 # bandwidth
-        b = max(xi) - min(xi)
-        return np.sum(np.exp(-(x-xi)**2/(2*b**2)))/(n*h)
-    return kde_estimate
+
     
