@@ -4,6 +4,7 @@ from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
+import mpmath as mp
 #from itertools import compress
 
 class Event:
@@ -811,4 +812,36 @@ def gcdist(R,lat1,lat2,long1,long2, deg = True):
     
     return 2*R*np.arcsin((hav(lat1,lat2,long1,long2))**0.5)
 
+def rho(r, rho0, rc, gmma):
+    '''
+    Return the functional form for event density fall-off as described by Goebel, Brodsky
+    '''
+    return rho0/(1+(r/rc)**(2*gmma))**0.5
+
+def rho2(r, rho0, rc, gmma):
+    '''
+    verifying my integral for rho
+    '''
+    a = np.array([float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(ri/rc)**(2*gmma))) for ri in r])
+    b = -r**(2*gmma)/(2+4*gmma)*np.array([float(mp.hyp2f1(1.5,(2*gmma+1)/(2*gmma), 2+0.5/gmma, -(ri/rc)**(2*gmma))) for ri in r])*(2*gmma/rc**(2*gmma))
     
+    return rho0*(a + b)
+
+def LLK_rho(theta,*const):
+    '''
+    Log likelihood function for radial event density.
+    Inputs:
+    theta -> 1d array-like of parameters in order rc, gmma
+    *const -> (required) arguments specifying rho0, rmax, r vector
+    Outupts:
+    llk -> log likelihood, function of parameters
+    '''
+    rc, gmma = theta
+    rho0, rmax, r = const
+    sumr = np.sum(r)
+#    w = [ri for ri in r]# weights for sum of logs
+    sumlog = np.sum([ri/sumr * np.log(rho(ri, rho0, rc, gmma)) for ri in r])
+    intgrl = rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
+    
+    llk = sumlog - intgrl
+    return -llk
