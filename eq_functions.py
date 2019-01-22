@@ -850,15 +850,19 @@ def LLK_rho(theta,*const):
 #    llk = sumlog - intgrl
     
     n = 100
-    bin_edges = np.linspace(0, r.max(), n)
+    bin_edges = np.linspace(rmin, rmax, n) # fit from where data starts and ends
 #    bin_width = bin_edges[1] - bin_edges[0]
-#    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
+    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
     llk = 0
     for i in np.arange(n-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
-        if nobs < 0:
-            print('hold up')
-        nexp = integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0]  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))
-        llk += nobs * np.log(float(nexp)) - nexp - np.log(float(np.math.factorial(nobs)))
+        nobs = max(1,nobs)
+        nexp = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * rho(bin_centers[i], rho0, rc, gmma) #integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0] * bin_width  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))) # 
+        nexp = max(np.finfo(float).eps, nexp)
+#        if nexp <= 0:
+#            print('hold up, nexp = {}'.format(nexp))
+#            print('theta = {}, {}'.format(theta[0], theta[1]))
+#            print('integral_analytic = {}'.format(rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))))
+        llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
     
     return -llk

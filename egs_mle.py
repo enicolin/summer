@@ -66,9 +66,8 @@ rmax = r.max()
 rmin = r.min()
 const = (rmax, rmin, r, rho0)
 
-rhomax = densities.max()
-lb = [1e-3, 1e-3]
-ub = [rmax, 7]
+lb = [100, 1]
+ub = [1000, 5]
 #
 #f, ax = plt.subplots(1, figsize = (7,7))
 #n = 150
@@ -91,7 +90,7 @@ ax2.plot(distances/scale, densities, 'o')
 
 rplot = np.linspace(0,rmax,500)
 ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
-#ax2.set_xscale('log')
-#ax2.set_yscale('log')
+ax2.set_xscale('log')
+ax2.set_yscale('log')
 
 print(datetime.now() - start)
