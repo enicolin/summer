@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import random
 import matplotlib.pyplot as plt
-from scipy import stats
 from datetime import datetime
 from pyswarm import pso
 
@@ -56,48 +55,43 @@ cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Dis
 catalog = catalog.reindex(columns = cols)
 catalog = catalog[catalog.Magnitude <= 6]
 
-eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
+#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
 distances, densities = eq.plot_ED(catalog, plot = False) # get distance, density
-
-# need to be in log space
-#distances = np.log10(distances)
-#densities = np.log10(densities)
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
-scale = distances.min() # scale distances so that min dist. is 1
-r = distances
+scale = 1#distances.max() # scale distances so that max dist. is 1
+r = distances/scale
 rmax = r.max()
-const = (rho0, rmax, r)
+rmin = r.min()
+const = (rmax, rmin, r, rho0)
 
+rhomax = densities.max()
 lb = [1e-3, 1e-3]
-ub = [r.max(), 15]
-
-#vmin = 1e-5
-#vmax = 15
+ub = [rmax, 7]
 #
 #f, ax = plt.subplots(1, figsize = (7,7))
-#n = 100
+#n = 150
 #rc = np.linspace(1, r.max(), n)
 #gmma = np.linspace(1, 10, n)
 #X, Y = np.meshgrid(rc, gmma)
 #Z = np.zeros(np.shape(X))
 #for i in range(n):
 #    for j in range(n):
-#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rho0, rmax, r)
-#cs = plt.contourf(X,Y,Z,200)
+#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rmax, rmin, r, rho0)
+#cs = plt.contourf(X,Y,Z)
 #f.colorbar(cs, ax=ax)
 #plt.show()
 
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 120)
+theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 500)
 
 f2, ax2 = plt.subplots(1, figsize = (7,7))
 
-ax2.plot(distances, densities, 'o')
+ax2.plot(distances/scale, densities, 'o')
 
-rplot = np.linspace(distances.min(),distances.max(),500)
+rplot = np.linspace(0,rmax,500)
 ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
-ax2.set_xscale('log')
-ax2.set_yscale('log')
+#ax2.set_xscale('log')
+#ax2.set_yscale('log')
 
 print(datetime.now() - start)

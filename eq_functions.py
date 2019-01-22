@@ -3,6 +3,8 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
+import scipy.special as special
+from scipy import integrate
 from scipy.ndimage.filters import gaussian_filter1d
 import mpmath as mp
 #from itertools import compress
@@ -816,7 +818,7 @@ def rho(r, rho0, rc, gmma):
     '''
     Return the functional form for event density fall-off as described by Goebel, Brodsky
     '''
-    return rho0/(1+(r/rc)**(2*gmma))**0.5
+    return rho0 * 1/(1+(r/rc)**(2*gmma))**0.5
 
 def rho2(r, rho0, rc, gmma):
     '''
@@ -837,11 +839,26 @@ def LLK_rho(theta,*const):
     llk -> log likelihood, function of parameters
     '''
     rc, gmma = theta
-    rho0, rmax, r = const
-    sumr = np.sum(r)
-#    w = [ri for ri in r]# weights for sum of logs
-    sumlog = np.sum([ri/sumr * np.log(rho(ri, rho0, rc, gmma)) for ri in r])
-    intgrl = rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
+    rmax, rmin, r, rho0 = const
     
-    llk = sumlog - intgrl
+#    r = r/r.max()
+#    rmax = r.max()
+##    sumr = np.sum(r**0.02)
+##    N = len(r)
+#    intgrl = rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
+#    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
+#    llk = sumlog - intgrl
+    
+    n = 100
+    bin_edges = np.linspace(0, r.max(), n)
+#    bin_width = bin_edges[1] - bin_edges[0]
+#    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
+    llk = 0
+    for i in np.arange(n-1):
+        nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
+        if nobs < 0:
+            print('hold up')
+        nexp = integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = const)  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))
+        llk += nobs * np.log(float(nexp)) - nexp - np.log(float(np.math.factorial(nobs)))
+    
     return -llk
