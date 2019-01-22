@@ -858,7 +858,7 @@ def LLK_rho(theta,*const):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
         if nobs < 0:
             print('hold up')
-        nexp = integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = const)  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))
+        nexp = integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0]  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))
         llk += nobs * np.log(float(nexp)) - nexp - np.log(float(np.math.factorial(nobs)))
     
     return -llk
