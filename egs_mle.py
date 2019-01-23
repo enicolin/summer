@@ -59,37 +59,43 @@ catalog = catalog[catalog.Magnitude <= 6]
 distances, densities = eq.plot_ED(catalog, plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
-rho0 = np.mean(densities[0:6])
+rho0 = np.mean(densities[0:7])
 scale = 1#distances.max() # scale distances so that max dist. is 1
 r = distances/scale
 rmax = r.max()
 rmin = r.min()
-const = (rmax, rmin, r, rho0)
+q = 2
+n_edges = 300
+bin_edges = np.linspace(r.min(), r.max(), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+const = (rmax, rmin, r, rho0, bin_edges, q)
 
 lb = [100, 1]
-ub = [1000, 5]
-#
+ub = [500, 5]
+
+
 #f, ax = plt.subplots(1, figsize = (7,7))
-#n = 150
-#rc = np.linspace(1, r.max(), n)
-#gmma = np.linspace(1, 10, n)
+#n = 125
+#rc = np.linspace(100, 500, n)
+#gmma = np.linspace(1, 5, n)
 #X, Y = np.meshgrid(rc, gmma)
 #Z = np.zeros(np.shape(X))
 #for i in range(n):
 #    for j in range(n):
-#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rmax, rmin, r, rho0)
-#cs = plt.contourf(X,Y,Z)
+#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rmax, rmin, r, rho0, bin_edges, q)
+#cs = plt.contourf(X,Y,Z,80,colormap = 'plasma')
 #f.colorbar(cs, ax=ax)
 #plt.show()
 
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 500)
+theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
+# by eye, good fit given by rc = 320, gmma = 1.8
 
 f2, ax2 = plt.subplots(1, figsize = (7,7))
 
 ax2.plot(distances/scale, densities, 'o')
 
-rplot = np.linspace(0,rmax,500)
+rplot = np.linspace(rmin,rmax,500)
 ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
+#ax2.set_xlim()
 ax2.set_xscale('log')
 ax2.set_yscale('log')
 

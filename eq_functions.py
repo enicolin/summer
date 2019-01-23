@@ -839,7 +839,7 @@ def LLK_rho(theta,*const):
     llk -> log likelihood, function of parameters
     '''
     rc, gmma = theta
-    rmax, rmin, r, rho0 = const
+    rmax, rmin, r, rho0, bin_edges, q = const
     
 #    r = r/r.max()
 #    rmax = r.max()
@@ -849,15 +849,16 @@ def LLK_rho(theta,*const):
 #    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
 #    llk = sumlog - intgrl
     
-    n = 100
-    bin_edges = np.linspace(rmin, rmax, n) # fit from where data starts and ends
+    n = len(bin_edges)#100
+#    bin_edges = np.linspace(np.log(rmin), np.log(rmax), n) # fit from where data starts and ends, bins to be logarithmically spaced
+#    bin_edges = np.exp(bin_edges) # back transform
 #    bin_width = bin_edges[1] - bin_edges[0]
-    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
+#    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
     llk = 0
     for i in np.arange(n-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
         nobs = max(1,nobs)
-        nexp = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * rho(bin_centers[i], rho0, rc, gmma) #integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0] * bin_width  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))) # 
+        nexp = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] #integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0] * bin_width  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))) # 
         nexp = max(np.finfo(float).eps, nexp)
 #        if nexp <= 0:
 #            print('hold up, nexp = {}'.format(nexp))
