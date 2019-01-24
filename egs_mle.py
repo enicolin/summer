@@ -19,7 +19,7 @@ random.seed(1756)
 start = datetime.now()
 
 k = 2000 # max number of events considered
-fname = 'newberry.txt'
+fname = 'raft_river.txt'
 f = open(fname, 'r')
 flines = f.readlines()
 if len(flines) > k:
@@ -30,16 +30,25 @@ f.close()
 # get longitudes and latitudes
 lats = [float(event.split()[7]) for event in flines]
 longs = [float(event.split()[8]) for event in flines]
-lat_mean = np.mean(lats)
-long_mean = np.mean(longs)
-r = 6.3781e6 # earth radius in m
+
+r = 6.3781e3 # earth radius in km
+lat0 =  np.pi/180*42.087422 ## raft river
+long0 = np.pi/180*-113.392872 ## raft river
+x0 = eq.gnom_x(lat0,long0,lat0,long0)
+y0 = eq.gnom_y(lat0,long0,lat0,long0)
+#lat0 = np.mean(lats)
+#long0 = np.mean(longs)
 
 # store events in list
 # NOTES:
 # latitude and longitude are converted to rectangular coordinates by
 # projecting the sines of the lat. and long. on to the plane tangent to the point of mean lat. and long.
 # distances between points and the origin (mean lat,lon) are determined by great circle distances between origin and the points
-events_all = [eq.Event(float(event.split()[10]), '-', r*np.sin(np.pi/180*(float(event.split()[8])-long_mean)), r*np.sin(np.pi/180*(float(event.split()[7])-lat_mean)), '-', eq.gcdist(r,float(event.split()[7]),lat_mean,float(event.split()[8]),long_mean), 0) for event in flines]
+year = '2016'
+events_all = [eq.Event(float(event.split()[10]), '-', \
+                       ( np.cos(np.pi/180*float(event.split()[7]))*np.sin(long0-np.pi/180*float(event.split()[8]))) / ( np.sin(np.pi/180*float(event.split()[7]))*np.sin(lat0) - np.sin(np.pi/180*float(event.split()[7]))*np.cos(lat0)*np.cos(long0-np.pi/180*float(event.split()[8])) ),\
+                       ( np.cos(np.pi/180*float(event.split()[7]))*np.sin(lat0) - np.sin(np.pi/180*float(event.split()[7]))*np.cos(lat0)*np.cos(long0-np.pi/180*float(event.split()[8])) ) / ( np.sin(np.pi/180*float(event.split()[7]))*np.sin(lat0) - np.sin(np.pi/180*float(event.split()[7]))*np.cos(lat0)*np.cos(long0-np.pi/180*float(event.split()[8])) ),\
+                       '-', eq.gcdist(r,float(event.split()[7]),lat0,float(event.split()[8]),long0), 0) for event in flines]
 
 # format events in the pd dataframe format defined by generate_catalog etc. 
 catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
@@ -55,7 +64,7 @@ cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Dis
 catalog = catalog.reindex(columns = cols)
 catalog = catalog[catalog.Magnitude <= 6]
 
-#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
+eq.plot_catalog(catalog, 1, np.array([x0,y0]), color = 'Generation')
 distances, densities = eq.plot_ED(catalog, plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
@@ -64,13 +73,13 @@ scale = 1#distances.max() # scale distances so that max dist. is 1
 r = distances/scale
 rmax = r.max()
 rmin = r.min()
-q = 2
+#q = 2
 n_edges = 300
 bin_edges = np.linspace(r.min(), r.max(), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-const = (rmax, rmin, r, rho0, bin_edges, q)
+const = (rmax, rmin, r, rho0, bin_edges, n_edges)
 
-lb = [100, 1]
-ub = [500, 5]
+lb = [1, 1]
+ub = [2500, 5]
 
 
 #f, ax = plt.subplots(1, figsize = (7,7))
@@ -86,7 +95,7 @@ ub = [500, 5]
 #f.colorbar(cs, ax=ax)
 #plt.show()
 
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
+#theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
 # by eye, good fit given by rc = 320, gmma = 1.8
 
 f2, ax2 = plt.subplots(1, figsize = (7,7))
@@ -94,7 +103,7 @@ f2, ax2 = plt.subplots(1, figsize = (7,7))
 ax2.plot(distances/scale, densities, 'o')
 
 rplot = np.linspace(rmin,rmax,500)
-ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
+#ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
 #ax2.set_xlim()
 ax2.set_xscale('log')
 ax2.set_yscale('log')

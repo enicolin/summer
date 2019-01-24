@@ -541,7 +541,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
             c = np.array(catalog.Generation)[0] # colour is generation
             plt.scatter(x, y,
                        c = event_color,
-                       s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
+                       s = 10**magnitudes, # large events displayed much bigger than smaller ones
                        label = c,
                        cmap = 'Set1',
                        alpha = 0.75)
@@ -804,7 +804,7 @@ def hav(lat1,lat2,long1,long2):
     '''
     return 0.5*(1-np.cos(lat2-lat1)) + np.cos(lat1)*np.cos(lat2)*0.5*(1-np.cos(long2-long1))
     
-def gcdist(R,lat1,lat2,long1,long2, deg = True):
+def gcdist(R,lat1,lat2,long1,long2, deg = False):
     '''
     Returns the great circle distance between two points on a sphere, given their latitude and longitudes, and radius of sphere
     '''
@@ -839,7 +839,7 @@ def LLK_rho(theta,*const):
     llk -> log likelihood, function of parameters
     '''
     rc, gmma = theta
-    rmax, rmin, r, rho0, bin_edges, q = const
+    rmax, rmin, r, rho0, bin_edges, n_edges = const
     
 #    r = r/r.max()
 #    rmax = r.max()
@@ -849,13 +849,12 @@ def LLK_rho(theta,*const):
 #    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
 #    llk = sumlog - intgrl
     
-    n = len(bin_edges)#100
 #    bin_edges = np.linspace(np.log(rmin), np.log(rmax), n) # fit from where data starts and ends, bins to be logarithmically spaced
 #    bin_edges = np.exp(bin_edges) # back transform
 #    bin_width = bin_edges[1] - bin_edges[0]
 #    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
     llk = 0
-    for i in np.arange(n-1):
+    for i in np.arange(n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
         nobs = max(1,nobs)
         nexp = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] #integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0] * bin_width  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))) # 
@@ -864,6 +863,28 @@ def LLK_rho(theta,*const):
 #            print('hold up, nexp = {}'.format(nexp))
 #            print('theta = {}, {}'.format(theta[0], theta[1]))
 #            print('integral_analytic = {}'.format(rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))))
-        llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
+        llk += nobs * log(nexp) - nexp - log(np.math.factorial(nobs))#(nobs*log(nobs) - nobs + 1)
     
     return -llk
+
+def gnom_x(lat0,long0,lat,long, deg = True):
+    
+    if deg:
+        lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
+    
+    cosc = np.sin(lat)*np.sin(lat0) + np.cos(lat)*np.cos(lat0)*np.cos(long0-long)
+    
+    x = np.cos(lat0)*np.sin(long0-long) / cosc
+    
+    return x
+
+def gnom_y(lat0,long0,lat,long, deg = True):
+    
+    if deg:
+        lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
+    
+    cosc = np.sin(lat)*np.sin(lat0) + np.cos(lat)*np.cos(lat0)*np.cos(long0-long)
+    
+    y = ( np.cos(lat)*np.sin(lat0) - np.sin(lat)*np.cos(lat0)*np.cos(long0-long) ) / cosc
+    
+    return y
