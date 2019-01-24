@@ -541,7 +541,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
             c = np.array(catalog.Generation)[0] # colour is generation
             plt.scatter(x, y,
                        c = event_color,
-                       s = 10**magnitudes, # large events displayed much bigger than smaller ones
+                       s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
                        label = c,
                        cmap = 'Set1',
                        alpha = 0.75)
@@ -867,24 +867,24 @@ def LLK_rho(theta,*const):
     
     return -llk
 
-def gnom_x(lat0,long0,lat,long, deg = True):
+def gnom_x(lat, long, lat0, long0, deg = True):
     
     if deg:
         lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
     
-    cosc = np.sin(lat)*np.sin(lat0) + np.cos(lat)*np.cos(lat0)*np.cos(long0-long)
+    cosc = np.sin(lat0)*np.sin(lat) + np.cos(lat0)*np.cos(lat)*np.cos(long-long0)
     
-    x = np.cos(lat0)*np.sin(long0-long) / cosc
+    x = np.cos(lat)*np.sin(long-long0) / cosc
     
     return x
 
-def gnom_y(lat0,long0,lat,long, deg = True):
+def gnom_y(lat, long, lat0, long0, deg = True):
     
     if deg:
         lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
     
-    cosc = np.sin(lat)*np.sin(lat0) + np.cos(lat)*np.cos(lat0)*np.cos(long0-long)
+    cosc = np.sin(lat0)*np.sin(lat) + np.cos(lat0)*np.cos(lat)*np.cos(long-long0)
     
-    y = ( np.cos(lat)*np.sin(lat0) - np.sin(lat)*np.cos(lat0)*np.cos(long0-long) ) / cosc
+    y = ( np.cos(lat0)*np.sin(lat) - np.sin(lat0)*np.cos(lat)*np.cos(long-long0) ) / cosc
     
     return y
