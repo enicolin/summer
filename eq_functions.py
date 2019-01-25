@@ -731,7 +731,7 @@ def catalog_plots(catalog_pkl):
     
     plt.show()
 
-def kNN_measure(x, x0, k, dim = 2):
+def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
     """
     Inputs:
     x -> list of np.array objects of same dimension or list of scalars
@@ -749,7 +749,7 @@ def kNN_measure(x, x0, k, dim = 2):
     neighbour_distances = []
     for j in range(k):
         distances = [(np.linalg.norm(xi-x0)) if xi is not x0 else np.inf for xi in xcopy]
-        i = distances.index(min(distances)) # argmin{distances}
+        i = distances.index(min(distances)) # argmin{distances} 
         neighbour_distances.append(min(distances))
         xcopy.pop(i)
     if dim == 2:
@@ -758,11 +758,13 @@ def kNN_measure(x, x0, k, dim = 2):
 #        if False in keep:
 #            neighbour_distances = compress(neighbour_distances, keep)
         measure = max(neighbour_distances)
-        if measure == 0: # temporary
-            measure = 0.1
+#        rmin = min(neighbour_distances)
     elif dim == 1:
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
-    return measure
+    if goebel_dens:
+        return np.pi*(measure)**2
+    else:
+        return measure
 
 def plot_ED(catalogs_raw, k = 4, plot = True):
     """
@@ -783,7 +785,7 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
     
     # get positions as list of numpy vectors
     positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
-    density = np.array([k / (2 * n * kNN_measure(positions, event, k))  for event in positions], dtype = float) # get the kNN density for each event
+    density = np.array([k / (kNN_measure(positions, event, k, goebel_dens = True)) for event in positions], dtype = float) # get the kNN density for each event (2 * n * kNN_measure(positions, event, k))
     
     if plot:
         f, ax = plt.subplots(1, figsize=(7,6))
@@ -793,6 +795,8 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
         ax.set_ylabel('event density')
         ax.set_ylim(0,density.max())
         ax.set_xscale('log')#, nonposx = 'clip')
+        ax.xlim(-300,300)
+        ax.ylim(-300,300)
         plt.show()
     
     return distance, density
@@ -854,17 +858,18 @@ def LLK_rho(theta,*const):
 #    bin_width = bin_edges[1] - bin_edges[0]
 #    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
     llk = 0
-    for i in np.arange(n_edges-1):
+    for i in range(n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
         nobs = max(1,nobs)
-        nexp = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] #integrate.quad(rho, bin_edges[i+1], bin_edges[i], args = (rho0, rc, gmma))[0] * bin_width  #rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))) # 
+        nexp =  np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] # np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*rho0 * (bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))))
         nexp = max(np.finfo(float).eps, nexp)
-#        if nexp <= 0:
-#            print('hold up, nexp = {}'.format(nexp))
-#            print('theta = {}, {}'.format(theta[0], theta[1]))
-#            print('integral_analytic = {}'.format(rho0 * bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - rho0 * bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma)))))
-        llk += nobs * log(nexp) - nexp - log(np.math.factorial(nobs))#(nobs*log(nobs) - nobs + 1)
+        llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
     
+#    llk = np.sum([max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))) * \
+#                  log(max(np.finfo(float).eps, np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]))\
+#                  - max(np.finfo(float).eps, np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]) \
+#                  - (max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]])))*log(max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]])))) -\
+#                     max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))) + 1) for i in range(n_edges-1)])
     return -llk
 
 def gnom_x(lat, long, lat0, long0, deg = True):

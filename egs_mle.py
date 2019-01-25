@@ -19,7 +19,7 @@ random.seed(1756)
 start = datetime.now()
 
 k = 2000 # max number of events considered
-fname = 'raft_river.txt'
+fname = 'newberry.txt'
 f = open(fname, 'r')
 flines = f.readlines()
 if len(flines) > k:
@@ -27,33 +27,28 @@ if len(flines) > k:
     flines = random.sample(flines, k)
 
 f.close()
-# get longitudes and latitudes
-lats = [float(event.split()[7]) for event in flines]
-longs = [float(event.split()[8]) for event in flines]
 
-r = 6.3781e6 # earth radius in m
-lat0 =  42.087422 ## raft river
-long0 = -113.392872## raft river
+r = 6371e3 # earth radius in m
+lat0 =  43.725512 # newberry # 42.087422# raft river # 
+long0 = -121.310517# newberry # -113.392872# raft river # 
 x0 = eq.gnom_x(lat0,long0,lat0,long0)
 y0 = eq.gnom_y(lat0,long0,lat0,long0)
-#lat0 = np.mean(lats)
-#long0 = np.mean(longs)
 
 # store events in list
 # NOTES:
 # latitudes and longitudes are projected to a plane using a gnomonic projection
 # distances between points and the origin (mean lat,lon) are determined by great circle distances between origin and the points
-year = '2016'
-events_all = [eq.Event(float(event.split()[10]), '-', \
+year = ['2016']
+events_all = [eq.Event(float(event.split()[10]), event.split()[0], \
                        r*eq.gnom_x(float(event.split()[7]),float(event.split()[8]),lat0,long0, deg = True),\
                        r*eq.gnom_y(float(event.split()[7]),float(event.split()[8]),lat0,long0, deg = True),\
-                       '-', eq.gcdist(r,float(event.split()[7]),lat0,float(event.split()[8]),long0, deg = True), 0) for event in flines]# if event.split()[0] == year]
+                       '-', eq.gcdist(r,float(event.split()[7]),lat0,float(event.split()[8]),long0, deg = True), 0) for event in flines]# if event.split()[0] in year]
 
 # format events in the pd dataframe format defined by generate_catalog etc. 
 catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'Events':'-',
                                    'n_avg':'-',
-                                   'Time':[0] * len(events_all),
+                                   'Time':[event.time for event in events_all],
                                    'Distance':['-'] * len(events_all),
                                    'x':[event.x for event in events_all],
                                    'y':[event.y for event in events_all],
@@ -61,25 +56,25 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'Distance_from_origin': [event.distance_from_origin for event in events_all]})
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin']
 catalog = catalog.reindex(columns = cols)
-catalog = catalog[catalog.Magnitude <= 6]
-N = len(events_all)
+#catalog = catalog[(catalog.Time == '2014') & (catalog.Distance_from_origin <= 10**2.5)]
+N = len(catalog)
 
 eq.plot_catalog(catalog, 1, np.array([x0,y0]), color = 'Generation')
-distances, densities = eq.plot_ED(catalog, k = int(N**0.5),  plot = False) # get distance, density
+
+r, densities = eq.plot_ED(catalog, k = 20,  plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
-rho0 = np.mean(densities[0:5])
-scale = 1#distances.max() # scale distances so that max dist. is 1
-r = distances/scale
+rho0 = np.mean(densities[0:6])
 rmax = r.max()
 rmin = r.min()
-#q = 2
-n_edges = 300
+n_edges = 300 # min(N, 320)
+#bin_edges = np.linspace(np.log10(r.min()), np.log10(r.max()), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+#bin_edges = 10**bin_edges
 bin_edges = np.linspace(r.min(), r.max(), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 const = (rmax, rmin, r, rho0, bin_edges, n_edges)
 
 lb = [1, 1]
-ub = [2500, 5]
+ub = [1000, 5]
 
 #f, ax = plt.subplots(1, figsize = (7,7))
 #n = 125
@@ -89,20 +84,40 @@ ub = [2500, 5]
 #Z = np.zeros(np.shape(X))
 #for i in range(n):
 #    for j in range(n):
-#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rmax, rmin, r, rho0, bin_edges, q)
+#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rmax, rmin, r, rho0, bin_edges, n_edges)
 #cs = plt.contourf(X,Y,Z,80,colormap = 'plasma')
 #f.colorbar(cs, ax=ax)
 #plt.show()
 
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
-# by eye, good fit given by rc = 320, gmma = 1.8
+#start = datetime.now()
+#k = 3
+#positions = [np.array([xi,yi]) for xi,yi in zip([event.x for event in events_all], [event.y for event in events_all])]
+#f, ax = plt.subplots(1, figsize = (7,7))
+#n = 150
+#easting = np.linspace(-300, 300, n)
+#northing = easting
+#X, Y = np.meshgrid(easting, northing)
+#Z = np.zeros(np.shape(X))
+#for i in range(n):
+#    for j in range(n):
+#        Z[i][j] = k / (eq.kNN_measure(positions, np.array([easting[i],northing[j]]), k, goebel_dens = True))
+#Z = Z.T
+#cs = plt.contourf(X,Y,Z,10,cmap = 'coolwarm')
+#f.colorbar(cs, ax=ax)
+#plt.savefig('newberry_ensity2d.png',dpi=400)
+#plt.show()
+#print(datetime.now() - start)
+
+
+#theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
+# by eye, good fit given by rc = 320, gmma = 1.8 - newberry
 
 f2, ax2 = plt.subplots(1, figsize = (7,7))
 
-ax2.plot(distances/scale, densities, 'o')
+ax2.plot(r, densities, 'o')
 
 rplot = np.linspace(rmin,rmax,500)
-ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
+#ax2.plot(rplot, eq.rho(rplot, rho0, theta0[0], theta0[1]),'-',color='r')
 ax2.set_xscale('log')
 ax2.set_yscale('log')
 
