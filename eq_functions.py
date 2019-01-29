@@ -541,7 +541,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
             c = np.array(catalog.Generation)[0] # colour is generation
             plt.scatter(x, y,
                        c = event_color,
-                       s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
+                       s = 0.12*10**magnitudes, # large events displayed much bigger than smaller ones
                        label = c,
                        cmap = 'Set1',
                        alpha = 0.75)
@@ -781,7 +781,7 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
     x = catalogs.x
     y = catalogs.y
     distance = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
-    n = len(distance) # total number of events
+#    n = len(distance) # total number of events
     
     # get positions as list of numpy vectors
     positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
@@ -795,8 +795,6 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
         ax.set_ylabel('event density')
         ax.set_ylim(0,density.max())
         ax.set_xscale('log')#, nonposx = 'clip')
-        ax.xlim(-300,300)
-        ax.ylim(-300,300)
         plt.show()
     
     return distance, density
@@ -822,7 +820,8 @@ def rho(r, rho0, rc, gmma):
     '''
     Return the functional form for event density fall-off as described by Goebel, Brodsky
     '''
-    return rho0 * 1/(1+(r/rc)**(2*gmma))**0.5
+    return rho0/(1+(r/rc)**(2*gmma))**0.5
+#    return np.log(rho0) - 0.5*np.log(1+(r/rc)**(2*gmma))
 
 def rho2(r, rho0, rc, gmma):
     '''
@@ -845,11 +844,9 @@ def LLK_rho(theta,*const):
     rc, gmma = theta
     rmax, rmin, r, rho0, bin_edges, n_edges = const
     
-#    r = r/r.max()
-#    rmax = r.max()
-##    sumr = np.sum(r**0.02)
-##    N = len(r)
-#    intgrl = rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
+##    dr = bin_edges[1] - bin_edges[0]
+##    intgrl = integrate.quad(rho, 0, rmax, args = (rho0, rc, gmma))[0] # rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
+#    intgrl = np.sum([integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))/(bin_edges[i+1] - bin_edges[i]) * np.pi * (bin_edges[i+1]**2- bin_edges[i]**2) for i in range(n_edges-1)])
 #    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
 #    llk = sumlog - intgrl
     
@@ -864,7 +861,7 @@ def LLK_rho(theta,*const):
         nexp =  np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] # np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*rho0 * (bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))))
         nexp = max(np.finfo(float).eps, nexp)
         llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
-    
+#    
 #    llk = np.sum([max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))) * \
 #                  log(max(np.finfo(float).eps, np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]))\
 #                  - max(np.finfo(float).eps, np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]) \
