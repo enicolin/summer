@@ -54,28 +54,28 @@ r, densities = eq.plot_ED(catalog, k = 20,  plot = False) # get distance, densit
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
-rmax = np.log(r.max())
-rmin = np.log(r.min())
-n_edges = 250 
-#bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-#bin_edges = 10**bin_edges
-bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+rmax = (r.max())
+rmin = (r.min())
+n_edges = 10 
+bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+bin_edges = 10**bin_edges
+#bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 const = (rmax, rmin, r, rho0, bin_edges, n_edges)
 
 lb = [1, 1]
 ub = [300, 6]
 
 # do particle swarm opti.
-#theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
+theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
 
 ax.plot(r, densities, 'o')
 
-rplot = np.linspace(np.exp(rmin),np.exp(rmax),n_edges)
+rplot = np.linspace((rmin),(rmax),500)
 #ax.plot(rplot, (eq.rho(rplot, rho0, 290.4, 5.2)),'-',color='r')
-#ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1])),'-',color='b')
+ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1])),'-',color='b')
 ax.set_xscale('log')
 ax.set_yscale('log')
     

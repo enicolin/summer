@@ -757,12 +757,13 @@ def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
 #        keep = [not(i == np.nan or i == np.inf) for i in neighbour_distances]
 #        if False in keep:
 #            neighbour_distances = compress(neighbour_distances, keep)
-        measure = max(neighbour_distances)
-#        rmin = min(neighbour_distances)
+        rmin = min(neighbour_distances)
+        rmax = max(neighbour_distances)
+        measure = rmax
     elif dim == 1:
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     if goebel_dens:
-        return np.pi*(measure)**2
+        return np.pi*(rmax**2- rmin**2)
     else:
         return measure
 
@@ -816,11 +817,15 @@ def gcdist(R,lat1,lat2,long1,long2, deg = False):
     
     return 2*R*np.arcsin((hav(lat1,lat2,long1,long2))**0.5)
 
-def rho(r, rho0, rc, gmma):
+def rho(r, rho0, rc, gmma, plot = False):
     '''
     Return the functional form for event density fall-off as described by Goebel, Brodsky
     '''
-    return rho0/(1+(r/rc)**(2*gmma))**0.5
+    dens = rho0/(1+(r/rc)**(2*gmma))**0.5
+    if plot:
+        return dens
+    dens = dens/(dens.min())
+    return np.log10(dens)
 #    return np.log(rho0) - 0.5*np.log(1+(r/rc)**(2*gmma))
 
 def rho2(r, rho0, rc, gmma):
@@ -844,29 +849,26 @@ def LLK_rho(theta,*const):
     rc, gmma = theta
     rmax, rmin, r, rho0, bin_edges, n_edges = const
     
-##    dr = bin_edges[1] - bin_edges[0]
+#    dr = bin_edges[1] - bin_edges[0]
 ##    intgrl = integrate.quad(rho, 0, rmax, args = (rho0, rc, gmma))[0] # rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
-#    intgrl = np.sum([integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))/(bin_edges[i+1] - bin_edges[i]) * np.pi * (bin_edges[i+1]**2- bin_edges[i]**2) for i in range(n_edges-1)])
+#    intgrl = np.sum([integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))/(dr) * np.pi * (bin_edges[i+1]**2- bin_edges[i]**2) for i in range(n_edges-1)])
 #    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
 #    llk = sumlog - intgrl
     
-#    bin_edges = np.linspace(np.log(rmin), np.log(rmax), n) # fit from where data starts and ends, bins to be logarithmically spaced
-#    bin_edges = np.exp(bin_edges) # back transform
-#    bin_width = bin_edges[1] - bin_edges[0]
-#    bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
+    eps = 1e-8 #np.finfo(float).eps
     llk = 0
     for i in range(n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
-        nobs = max(1,nobs)
-        nexp =  np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] # np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*rho0 * (bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))))
-        nexp = max(np.finfo(float).eps, nexp)
-        llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
-#    
-#    llk = np.sum([max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))) * \
-#                  log(max(np.finfo(float).eps, np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]))\
-#                  - max(np.finfo(float).eps, np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2) * 1/(bin_edges[i+1]-bin_edges[i])*integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]) \
-#                  - (max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]])))*log(max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]])))) -\
-#                     max(1,len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))) + 1) for i in range(n_edges-1)])
+        nobs = max(eps,nobs)
+        factor = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2)
+#        factor = (bin_edges[i+1] - bin_edges[i])**2
+        integral = integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]/(bin_edges[i+1] - bin_edges[i])
+#        integral =  rho0 * (bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))))
+        nexp = factor*integral 
+        nexp = max(eps, nexp)
+        #llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
+        llk += (nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1))#/nobs
+
     return -llk
 
 def gnom_x(lat, long, lat0, long0, deg = True):
