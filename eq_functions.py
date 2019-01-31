@@ -763,7 +763,7 @@ def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
     elif dim == 1:
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     if goebel_dens:
-        return np.pi*(rmax**2- rmin**2)
+        return np.pi*(rmax- rmin)**2
     else:
         return measure
 
@@ -822,10 +822,10 @@ def rho(r, rho0, rc, gmma, plot = False):
     Return the functional form for event density fall-off as described by Goebel, Brodsky
     '''
     dens = rho0/(1+(r/rc)**(2*gmma))**0.5
-    if plot:
-        return dens
-    dens = dens/(dens.min())
-    return np.log10(dens)
+#    if plot:
+    return dens
+#    dens = dens/(dens.min())
+#    return np.log10(dens)
 #    return np.log(rho0) - 0.5*np.log(1+(r/rc)**(2*gmma))
 
 def rho2(r, rho0, rc, gmma):
@@ -860,10 +860,8 @@ def LLK_rho(theta,*const):
     for i in range(n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
         nobs = max(eps,nobs)
-        factor = np.pi * (bin_edges[i+1]**2 - bin_edges[i]**2)
-#        factor = (bin_edges[i+1] - bin_edges[i])**2
+        factor = np.pi * (bin_edges[i+1] - bin_edges[i])**2
         integral = integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]/(bin_edges[i+1] - bin_edges[i])
-#        integral =  rho0 * (bin_edges[i+1] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i+1]/rc)**(2*gmma))) - bin_edges[i] * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(bin_edges[i]/rc)**(2*gmma))))
         nexp = factor*integral 
         nexp = max(eps, nexp)
         #llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)

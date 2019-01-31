@@ -26,50 +26,55 @@ data['Distance'] = pd.Series(['-'] * nrows, index = data.index)
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin']
 data = data.reindex(columns = cols)
 
+
 # get a subset of the data for now, for speed
-k = 1000
+k = 400
 data = data.sample(k, random_state = 1)
 
 start = datetime.now()
 # plot data
-x0 = 475826.427137
-y0 = 6.923281e+06
-#x0 = 475800.6
-#y0 = 6924485.4
+#x0 = 475513.1
+#y0 = 6922782.2
+x0 = np.mean(data.x) - 230
+y0 = np.mean(data.y) #+ 160
 
-r0 = np.array([np.mean(data.x), np.mean(data.y)])
-data['x'] = r0[0] - data.x # shift so that main shock position is (0,0)
-data['y'] = r0[1] - data.y
+data['x'] = x0 - data.x # shift so that main shock position is (0,0)
+data['y'] = y0 - data.y
 data['Distance_from_origin'] = (data.x**2 + data.y**2)**0.5
+data = data[data.Distance_from_origin < 10**3.2]
+
 eq.plot_catalog(data, 1, np.array([0,0]), color = 'Generation')
 
-r, densities = eq.plot_ED(data, k = 20,  plot = False) # get distance, density and plot
+r, densities = eq.plot_ED(data, k = 30,  plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
 rmax = (r.max())
 rmin = (r.min())
-n_edges = 10 
+n_edges = 10
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 const = (rmax, rmin, r, rho0, bin_edges, n_edges)
 
 lb = [1, 1]
-ub = [800, 6]
+ub = [1000, 8]
 
 # do particle swarm opti.
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
+theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 150)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
 
 ax.plot(r, densities, 'o')
 
+#theta0 = np.array([140, 2.4])
 rplot = np.linspace((rmin),(rmax),500)
-#ax.plot(rplot, (eq.rho(rplot, rho0, 290.4, 5.2)),'-',color='r')
-ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1])),'-',color='b')
+ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1], plot = True)),'-',color='r')
+for be in bin_edges:
+    ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
+print('theta0 = {}, llk = {}'.format(theta0,llk0))
 
 print(datetime.now().timestamp() - start.timestamp())

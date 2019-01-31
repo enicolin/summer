@@ -27,9 +27,13 @@ if len(flines) > k:
     flines = random.sample(flines, k)
 
 f.close()
-
+rr = [42.088823, -113.389962]
+nwb = [43.725959, -121.310355]
+metrics = pd.DataFrame({'lat0':[nwb[0], rr[0]],
+                        'long0':[nwb[1], rr[1]]},
+    index =  ['newberry.txt','raft_river.txt'])
 r = 6371e3 # earth radius in m
-lat0, long0 =  43.726035, -121.310486 #43.725820, -121.310371 OG # newberry # 42.088047, -113.385184# raft river #  
+lat0, long0 =  metrics.loc[fname].lat0, metrics.loc[fname].long0 #43.725820, -121.310371 OG # newberry # 42.088047, -113.385184# raft river #  
 x0 = eq.gnom_x(lat0,long0,lat0,long0)
 y0 = eq.gnom_y(lat0,long0,lat0,long0)
 
@@ -54,12 +58,12 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'Distance_from_origin': [event.distance_from_origin for event in events_all]})
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin']
 catalog = catalog.reindex(columns = cols)
-catalog = catalog[(catalog.Time == '2014')]# & (catalog.Distance_from_origin <= 10**3)]
-N = len(catalog)
+catalog = catalog[(catalog.Time == '2014') & (catalog.Distance_from_origin <= 10**2.5)]
+N = 10
 
 eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
 
-r, densities = eq.plot_ED(catalog, k = 30,  plot = False) # get distance, density
+r, densities = eq.plot_ED(catalog, k = 20,  plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
@@ -75,7 +79,7 @@ lb = [1, 1]
 ub = [1000, 6]
 
 # do particle swarm opti.
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 150, omega = 0.1)
+theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
@@ -84,14 +88,12 @@ ax.plot(r, densities, 'o')
 
 #theta0 = np.array([140, 2.4])
 rplot = np.linspace((rmin),(rmax),500)
-#ax.plot(rplot, (eq.rho(rplot, rho0, 238.6, 2.6)),'-',color='r') # raft river
-#ax.plot(rplot, (eq.rho(rplot, rho0, 142, 2.8)),'-',color='r') # newberry
 ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1], plot = True)),'-',color='b')
 for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
-print(theta0)
+print('theta0 = {}, llk = {}'.format(theta0,llk0))
 
 print(datetime.now() - start)
 
