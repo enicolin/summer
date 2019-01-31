@@ -479,7 +479,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         catalog_list.append(catalog)
         return
 
-def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
+def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot = False):
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
@@ -489,10 +489,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
                'Time' - default, colours events by time of occurrence
                'Generation' - colours by aftershock generation
     """
-    fig= plt.figure()
-    fig.set_figheight(8)
-    fig.set_figwidth(8)
-    ax = fig.add_subplot(111)
+    fig, ax = plt.subplots(1, figsize=(8,8))
   
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract rows where events took place
     total_events = len(catalogs) # count how many events took place
@@ -539,13 +536,15 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
             magnitudes = np.array(magnitudes, dtype = np.float)
             
             c = np.array(catalog.Generation)[0] # colour is generation
-            plt.scatter(x, y,
+            ax.scatter(x, y,
                        c = event_color,
                        s = 0.12*10**magnitudes, # large events displayed much bigger than smaller ones
                        label = c,
                        cmap = 'Set1',
                        alpha = 0.75)
         lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
+        plt.ylim(-800,300)
+        plt.xlim(-300,500)
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
 
@@ -593,8 +592,9 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time'):
         ax.set_title('Generated Events ({})'.format(total_events))
     elif color == "Density":
         ax.set_title('Event Density by kNN, k = {}'.format(k))
-
-    plt.savefig('newberry.png',dpi=400)
+    
+    if saveplot:
+        plt.savefig(savepath,dpi=180)
 
 def frequency_by_interval(x, nbins, density = False):
     """

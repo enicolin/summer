@@ -30,8 +30,8 @@ f.close()
 start = datetime.now()
 
 # reduce events to a random sample of k elements
-k = 650
-events = random.sample(events, k)
+#k = 650
+#events = random.sample(events, k)
 
 # format events in the pd dataframe format defined by generate_catalog etc. 
 catalog = pd.DataFrame({'Magnitude': [2.3] * len(events),
@@ -47,9 +47,11 @@ cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Dis
 catalog = catalog.reindex(columns = cols)
 
 r0 = np.array([np.mean([event.x for event in events]), np.mean([event.y for event in events])])#np.array([3557.418383, -324.384367])
-catalog['x'] = r0[0]+58 - catalog.x # shift so that main shock position is (0,0)
-catalog['y'] = r0[1]-130 - catalog.y
+catalog['x'] = r0[0]-42 - catalog.x # shift so that main shock position is (0,0)
+catalog['y'] = r0[1]+170 - catalog.y
 catalog['Distance_from_origin'] = (catalog.x**2 + catalog.y**2)**0.5
-catalog = catalog[catalog.Distance_from_origin <= 10**2.6]
-eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
 
+#for i in range(1,1000):
+eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')#, savepath = 'fentonprog_frames/{}.png'.format(i), saveplot = True)
+
+print((datetime.now()-start).total_seconds())

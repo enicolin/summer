@@ -15,20 +15,21 @@ import matplotlib.pyplot as plt
 np.random.seed(1756)
 random.seed(1756)
 
+#==============================================================================
 # read in fenton hill data and store event objects in list
 f = open("FentonHillExpt2032-MHF-goodlocs.txt",'r')
 flines = f.readlines()
 flines = flines[0::2]
 
-events = [eq.Event(float(line.split()[11]), line.split()[1][0:2], float(line.split()[6]), float(line.split()[5]), '-', 0, '-') for line in flines]
+time_init = datetime(1983,12,6,hour=22,minute=4,second=36)
+events = [eq.Event(float(line.split()[11]),\
+                   (datetime(int('19'+line.split()[1][:2]), int(line.split()[1][2:]),int(line.split()[2][:2]),hour=int(line.split()[2][2:]),minute=int(line.split()[3][:2]),second=int(line.split()[3][2:]))-time_init).total_seconds()\
+                   , float(line.split()[6]), float(line.split()[5]), '-', 0, '-') for line in flines]
 
 f.close()
 
 start = datetime.now()
 
-# reduce events to a random sample of k elements
-k = 650
-events = random.sample(events, k)
 
 # format events in the pd dataframe format defined by generate_catalog etc. 
 catalog = pd.DataFrame({'Magnitude': [2.3] * len(events),
@@ -42,16 +43,20 @@ catalog = pd.DataFrame({'Magnitude': [2.3] * len(events),
                                    'Distance_from_origin': [event.distance_from_origin for event in events]})
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin']
 catalog = catalog.reindex(columns = cols)
-catalog = catalog[catalog.Time == '83']
 
 r0 = np.array([np.mean([event.x for event in events]), np.mean([event.y for event in events])])#np.array([3557.418383, -324.384367])
-catalog['x'] = r0[0]+58 - catalog.x # shift so that main shock position is (0,0)
-catalog['y'] = r0[1]-130 - catalog.y
+catalog['x'] = r0[0]-42 - catalog.x # shift so that main shock position is (0,0)
+catalog['y'] = r0[1]+170 - catalog.y
 catalog['Distance_from_origin'] = (catalog.x**2 + catalog.y**2)**0.5
-catalog = catalog[catalog.Distance_from_origin <= 10**2.6]
+# catalog = catalog[catalog.Distance_from_origin <= 10**2.6]
+
+# reduce events to a random sample of k elements
+catalog = catalog.sample(frac=0.3, replace=False)
+#==============================================================================
+
 eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
 
-r, densities = eq.plot_ED(catalog, k = 40,  plot = False) # get distance, density
+r, densities = eq.plot_ED(catalog, k = 20,  plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
@@ -67,7 +72,7 @@ lb = [1, 1]
 ub = [1000, 6]
 
 # do particle swarm opti.
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 150)
+theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
@@ -76,14 +81,12 @@ ax.plot(r, densities, 'o')
 
 #theta0 = np.array([140, 2.4])
 rplot = np.linspace((rmin),(rmax),500)
-#ax.plot(rplot, (eq.rho(rplot, rho0, 238.6, 2.6)),'-',color='r') # raft river
-#ax.plot(rplot, (eq.rho(rplot, rho0, 142, 2.8)),'-',color='r') # newberry
 ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1], plot = True)),'-',color='r')
 for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
-#print('theta0 = {}, llk = {}'.format(theta0,llk0))
+print('theta0 = {}, llk = {}'.format(theta0,llk0))
     
 print(datetime.now().timestamp() - start.timestamp())
 
