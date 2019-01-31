@@ -3,7 +3,7 @@ import random as rnd
 from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
-import scipy.special as special
+from scipy import spatial
 from scipy import integrate
 from scipy.ndimage.filters import gaussian_filter1d
 import mpmath as mp
@@ -543,8 +543,8 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
                        cmap = 'Set1',
                        alpha = 0.75)
         lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
-        plt.ylim(-800,300)
-        plt.xlim(-300,500)
+        plt.ylim(-500,700)
+        plt.xlim(-400,500)
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
 
@@ -556,17 +556,19 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         
         # need a list of vectors for position
         npoints = 100
-        k = 2
-        positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
+        k = 20
+#        positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
+        positions = list(zip(x.ravel(), y.ravel()))
         xgrid = np.linspace(x.min(), x.max(), npoints)
         ygrid = np.linspace(y.min(), y.max(), npoints)
-        points = [np.array(([xi],[yi])) for yi in ygrid for xi in xgrid] # points at which to sample kNN
+        points = [np.array(([xi,yi])) for yi in ygrid for xi in xgrid] # points at which to sample kNN
         xm, ym = np.meshgrid(xgrid, ygrid)
         density = np.zeros(np.shape(xm))
         p = 0
+        point_tree = spatial.KDTree(positions)
         for i in range(len(xgrid)):
             for j in range(len(ygrid)):
-                density[i][j] = k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
+                density[i][j] = k/(np.pi*(point_tree.query(points[p], k = k)[0][-1] - point_tree.query(points[p], k = k)[0][0])**2)#k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
                 p += 1
         plot = plt.contourf(xgrid, ygrid, density, 30, cmap = 'plasma')
         
@@ -594,7 +596,8 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         ax.set_title('Event Density by kNN, k = {}'.format(k))
     
     if saveplot:
-        plt.savefig(savepath,dpi=180)
+        plt.savefig(savepath,dpi=120)
+        plt.close('all')
 
 def frequency_by_interval(x, nbins, density = False):
     """
@@ -784,10 +787,14 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
     distance = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
 #    n = len(distance) # total number of events
     
-    # get positions as list of numpy vectors
-    positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
-    density = np.array([k / (kNN_measure(positions, event, k, goebel_dens = True)) for event in positions], dtype = float) # get the kNN density for each event (2 * n * kNN_measure(positions, event, k))
+#    MY PRIMITIVE kNN SEARCH - MUCHHHHHHHHHHHH SLOWER THAN USING KD TREES
+#     #get positions as list of numpy vectors
+#    positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
+#    density = np.array([k / (kNN_measure(positions, event, k, goebel_dens = True)) for event in positions], dtype = float) # get the kNN density for each event (2 * n * kNN_measure(positions, event, k))
     
+    positions = list(zip(x.ravel(), y.ravel()))
+    point_tree = spatial.KDTree(positions)
+    density = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1] - point_tree.query(event, k = k)[0][0]))**2 for event in positions], dtype = float)
     if plot:
         f, ax = plt.subplots(1, figsize=(7,6))
         ax.plot(distance, density, 'o')
