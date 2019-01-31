@@ -28,7 +28,7 @@ data = data.reindex(columns = cols)
 
 
 # get a subset of the data for now, for speed
-k = 400
+k = 500
 data = data.sample(k, random_state = 1)
 
 start = datetime.now()
@@ -75,6 +75,6 @@ for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
-print('theta0 = {}, llk = {}'.format(theta0,llk0))
+#print('theta0 = {}, llk = {}'.format(theta0,llk0))
 
 print(datetime.now().timestamp() - start.timestamp())

@@ -61,15 +61,15 @@ catalog = catalog.reindex(columns = cols)
 catalog = catalog[(catalog.Time == '2014') & (catalog.Distance_from_origin <= 10**2.5)]
 N = 10
 
-eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
+eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Density')
 
-r, densities = eq.plot_ED(catalog, k = 20,  plot = False) # get distance, density
+r, densities = eq.plot_ED(catalog, k = 15,  plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
 rmax = (r.max())
 rmin = (r.min())
-n_edges = 10
+n_edges = 20
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
