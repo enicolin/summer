@@ -511,7 +511,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         cmax = times.max()
         plot = plt.scatter(x, y,
                    c = c,
-                   s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
+                   s = 0.12*10**magnitudes, # large events displayed much bigger than smaller ones
                    cmap = cmap,
                    alpha = 0.75)
         plt.clim(0, cmax)
@@ -573,9 +573,9 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         max_seism = np.unravel_index(density.argmax(), density.shape)
         plt.plot(max_seism[0],max_seism[1],marker='x',color='r')
         
-#        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
-#        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
-#        cbar.set_label('Event density')
+        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
+        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
+        cbar.set_label('Event density')
         
     # plot the (initial/parent of all parents) main shock
     ax.scatter(r0[0], r0[1],
@@ -591,7 +591,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         ax.set_facecolor('#1b2330')
         ax.set_title('Generated Events ({})'.format(total_events))
     elif color == "Time":
-        ax.grid(True)
+#        ax.grid(True)
         ax.set_title('Generated Events ({})'.format(total_events))
     elif color == "Density":
         ax.set_title('Event Density by kNN, k = {}, {} events'.format(k, total_events))
@@ -857,13 +857,7 @@ def LLK_rho(theta,*const):
     rc, gmma = theta
     rmax, rmin, r, rho0, bin_edges, n_edges = const
     
-#    dr = bin_edges[1] - bin_edges[0]
-##    intgrl = integrate.quad(rho, 0, rmax, args = (rho0, rc, gmma))[0] # rho0 * rmax * float(mp.hyp2f1(0.5,0.5/gmma,1+0.5/gmma,-(rmax/rc)**(2*gmma)))
-#    intgrl = np.sum([integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))/(dr) * np.pi * (bin_edges[i+1]**2- bin_edges[i]**2) for i in range(n_edges-1)])
-#    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
-#    llk = sumlog - intgrl
-    
-    eps = 1e-8 #np.finfo(float).eps
+    eps = np.finfo(float).eps
     llk = 0
     for i in range(n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
@@ -878,7 +872,9 @@ def LLK_rho(theta,*const):
     return -llk
 
 def gnom_x(lat, long, lat0, long0, deg = True):
-    
+    '''
+    return x coordinate of a Gnomonic projection given a tangent plane's latitude/longitude coordinate where it contacts a unit sphere
+    '''
     if deg:
         lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
     
@@ -889,7 +885,9 @@ def gnom_x(lat, long, lat0, long0, deg = True):
     return x
 
 def gnom_y(lat, long, lat0, long0, deg = True):
-    
+    '''
+    return y coordinate of a Gnomonic projection given a tangent plane's latitude/longitude coordinate where it contacts a unit sphere
+    '''    
     if deg:
         lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
     
@@ -898,3 +896,19 @@ def gnom_y(lat, long, lat0, long0, deg = True):
     y = ( np.cos(lat0)*np.sin(lat) - np.sin(lat0)*np.cos(lat)*np.cos(long-long0) ) / cosc
     
     return y
+
+def robj(prms, *args):
+    '''
+    Objective function to be minimised for model fit. Weighted least squares function. Assumes normally distributed errors
+    '''
+    rc, gmma, rho0 = prms
+    r, dens = args
+    
+    r = -np.sum((dens-rho(r, rho0, rc, gmma))**2)
+    
+    return -r
+    
+    
+    
+    
+    
