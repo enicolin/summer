@@ -479,7 +479,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         catalog_list.append(catalog)
         return
 
-def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot = False):
+def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot = False, k = 5):
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
@@ -543,8 +543,8 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
                        cmap = 'Set1',
                        alpha = 0.75)
         lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
-        plt.ylim(-500,700)
-        plt.xlim(-400,500)
+        plt.ylim(y.min(),y.max())
+        plt.xlim(x.min(),x.max())
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
 
@@ -556,7 +556,6 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         
         # need a list of vectors for position
         npoints = 100
-        k = 20
 #        positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
         positions = list(zip(x.ravel(), y.ravel()))
         xgrid = np.linspace(x.min(), x.max(), npoints)
@@ -568,13 +567,15 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         point_tree = spatial.KDTree(positions)
         for i in range(len(xgrid)):
             for j in range(len(ygrid)):
-                density[i][j] = k/(np.pi*(point_tree.query(points[p], k = k)[0][-1] - point_tree.query(points[p], k = k)[0][0])**2)#k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
+                density[i][j] = k/(np.pi*(point_tree.query(points[p], k = k)[0][-1])**2)#k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
                 p += 1
-        plot = plt.contourf(xgrid, ygrid, density, 30, cmap = 'plasma')
+        plot = plt.contourf(xgrid, ygrid, density, 25, cmap = 'plasma')
+        max_seism = np.unravel_index(density.argmax(), density.shape)
+        plt.plot(max_seism[0],max_seism[1],marker='x',color='r')
         
-        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
-        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
-        cbar.set_label('Event density')
+#        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
+#        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
+#        cbar.set_label('Event density')
         
     # plot the (initial/parent of all parents) main shock
     ax.scatter(r0[0], r0[1],
@@ -593,10 +594,10 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         ax.grid(True)
         ax.set_title('Generated Events ({})'.format(total_events))
     elif color == "Density":
-        ax.set_title('Event Density by kNN, k = {}'.format(k))
+        ax.set_title('Event Density by kNN, k = {}, {} events'.format(k, total_events))
     
     if saveplot:
-        plt.savefig(savepath,dpi=120)
+        plt.savefig(savepath,dpi=90)
         plt.close('all')
 
 def frequency_by_interval(x, nbins, density = False):
@@ -794,7 +795,7 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
     
     positions = list(zip(x.ravel(), y.ravel()))
     point_tree = spatial.KDTree(positions)
-    density = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1] - point_tree.query(event, k = k)[0][0]))**2 for event in positions], dtype = float)
+    density = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
     if plot:
         f, ax = plt.subplots(1, figsize=(7,6))
         ax.plot(distance, density, 'o')

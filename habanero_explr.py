@@ -27,31 +27,25 @@ cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Dis
 data = data.reindex(columns = cols)
 
 
-# get a subset of the data for now, for speed
-k = 500
-data = data.sample(k, random_state = 1)
-
 start = datetime.now()
-# plot data
-#x0 = 475513.1
-#y0 = 6922782.2
-x0 = np.mean(data.x) - 230
-y0 = np.mean(data.y) #+ 160
+x0 = np.mean(data.x) - 50
+y0 = np.mean(data.y) -30
 
 data['x'] = x0 - data.x # shift so that main shock position is (0,0)
 data['y'] = y0 - data.y
 data['Distance_from_origin'] = (data.x**2 + data.y**2)**0.5
 data = data[data.Distance_from_origin < 10**3.2]
+data = data.sample(frac = 0.3, replace = False)
 
 eq.plot_catalog(data, 1, np.array([0,0]), color = 'Generation')
 
-r, densities = eq.plot_ED(data, k = 30,  plot = False) # get distance, density
+r, densities = eq.plot_ED(data, k = 150,  plot = False) # get distance, density
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
 rmax = (r.max())
 rmin = (r.min())
-n_edges = 10
+n_edges = 5
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
@@ -68,7 +62,7 @@ f, ax = plt.subplots(1, figsize = (7,7))
 
 ax.plot(r, densities, 'o')
 
-#theta0 = np.array([140, 2.4])
+theta0 = np.array([634.5, 4.9])
 rplot = np.linspace((rmin),(rmax),500)
 ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1], plot = True)),'-',color='r')
 for be in bin_edges:
