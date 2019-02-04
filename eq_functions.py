@@ -555,33 +555,31 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         y = np.array(catalogs['y'])
         
         # need a list of vectors for position
-        npoints = 100
+        npoints = 120
 #        positions = [np.array(([xi],[yi])) for xi, yi in zip(x,y)]
         positions = list(zip(x.ravel(), y.ravel()))
         xgrid = np.linspace(x.min(), x.max(), npoints)
         ygrid = np.linspace(y.min(), y.max(), npoints)
-        points = [np.array(([xi,yi])) for yi in ygrid for xi in xgrid] # points at which to sample kNN
+#        points = [np.array(([xi,yi])) for yi in ygrid for xi in xgrid] # points at which to sample kNN
         xm, ym = np.meshgrid(xgrid, ygrid)
+        points = list(zip(xm.ravel(), ym.ravel()))
         density = np.zeros(np.shape(xm))
         p = 0
         point_tree = spatial.KDTree(positions)
+#        r = 100
         for i in range(len(xgrid)):
             for j in range(len(ygrid)):
-                density[i][j] = k/(np.pi*(point_tree.query(points[p], k = k)[0][-1])**2)#k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
+                density[i][j] = k/(np.pi*(point_tree.query(points[p], k = k)[0][-1]))**2#k/(2 * total_events * kNN_measure(positions, points[p], k, dim = 2))
                 p += 1
-        plot = plt.contourf(xgrid, ygrid, density, 25, cmap = 'plasma')
+        plot = plt.contourf(xm, ym, density, 200, cmap = 'plasma')
         max_seism = np.unravel_index(density.argmax(), density.shape)
-        plt.plot(max_seism[0],max_seism[1],marker='x',color='r')
-        
-        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
-        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
-        cbar.set_label('Event density')
+        plt.plot(xm[max_seism[0]][max_seism[1]],ym[max_seism[0]][max_seism[1]],marker='x',color='r')
         
     # plot the (initial/parent of all parents) main shock
     ax.scatter(r0[0], r0[1],
            c = '#21ff60',
            alpha = 1,
-           marker = "x")
+           marker = "v")
     
     ax.set_ylabel('y position')
     ax.set_xlabel('x position')
@@ -597,7 +595,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         ax.set_title('Event Density by kNN, k = {}, {} events'.format(k, total_events))
     
     if saveplot:
-        plt.savefig(savepath,dpi=90)
+        plt.savefig(savepath,dpi=400)
         plt.close('all')
 
 def frequency_by_interval(x, nbins, density = False):
@@ -771,7 +769,7 @@ def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
     else:
         return measure
 
-def plot_ED(catalogs_raw, k = 4, plot = True):
+def plot_ED(catalogs_raw, k = 20, plot = True):
     """
     Plot event density w.r.t distance from main shock. Also returns distance and density (x,y)
     Calculates densities by k-NN binning
@@ -783,19 +781,31 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
     catalogs = catalogs.sort_values(by = ['Distance_from_origin']) # sort by distance
     
-    x = catalogs.x
-    y = catalogs.y
+#    x = catalogs.x
+#    y = catalogs.y
     distance = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
-#    n = len(distance) # total number of events
+    n = len(distance) # total number of events
     
 #    MY PRIMITIVE kNN SEARCH - MUCHHHHHHHHHHHH SLOWER THAN USING KD TREES
 #     #get positions as list of numpy vectors
 #    positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
 #    density = np.array([k / (kNN_measure(positions, event, k, goebel_dens = True)) for event in positions], dtype = float) # get the kNN density for each event (2 * n * kNN_measure(positions, event, k))
     
-    positions = list(zip(x.ravel(), y.ravel()))
-    point_tree = spatial.KDTree(positions)
-    density = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
+#    positions = list(zip(x.ravel(), y.ravel()))
+#    point_tree = spatial.KDTree(positions)
+#    density1 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
+    
+    positions = list(zip(distance,np.zeros(len(distance))))
+    dist_tree = spatial.KDTree(positions)
+    density0 = np.array([k/(n*(dist_tree.query(event, k = k)[0][-1] - dist_tree.query(event, k = k)[0][0])**2) for event in positions]) # density prior to rolling average
+    density = np.zeros(n)
+    for j in range(n-k):
+        denswindow = 0
+        for i in range(j,int(j+k)):
+            denswindow += density0[i]
+        density[j] = denswindow/(distance[j])#2*denswindow/k
+
+
     if plot:
         f, ax = plt.subplots(1, figsize=(7,6))
         ax.plot(distance, density, 'o')
@@ -805,7 +815,7 @@ def plot_ED(catalogs_raw, k = 4, plot = True):
         ax.set_ylim(0,density.max())
         ax.set_xscale('log')#, nonposx = 'clip')
         plt.show()
-    
+
     return distance, density
     
 #    
@@ -902,7 +912,7 @@ def robj(prms, *args):
     Objective function to be minimised for model fit. Weighted least squares function. Assumes normally distributed errors
     '''
     rc, gmma, rho0 = prms
-    r, dens = args
+    r, dens, bin_edges = args
     
     r = -np.sum((dens-rho(r, rho0, rc, gmma))**2)
     

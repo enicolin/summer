@@ -28,21 +28,27 @@ data = data.reindex(columns = cols)
 
 
 start = datetime.now()
-x0 = np.mean(data.x) - 50
-y0 = np.mean(data.y) -30
+x0 = np.mean(data.x) -90#- 50
+y0 = np.mean(data.y) #-32
 
 data['x'] = x0 - data.x # shift so that main shock position is (0,0)
 data['y'] = y0 - data.y
 data['Distance_from_origin'] = (data.x**2 + data.y**2)**0.5
-data = data[data.Distance_from_origin < 10**3.2]
+data = data.dropna()
 data = data.sample(frac = 0.3, replace = False)
 
 eq.plot_catalog(data, 1, np.array([0,0]), color = 'Generation')
 
-r, densities = eq.plot_ED(data, k = 150,  plot = False) # get distance, density
+N = len(data)
+k = 16 #int(N**0.5)
+r, densities = eq.plot_ED(data, k = k,  plot = False) # get distance, density
+df_dens = pd.DataFrame({'distance':r, 'density':densities})
+df_dens = df_dens[(df_dens.distance > 10**1.4) & (df_dens.distance <= 10**3)]
+r = df_dens.distance
+densities = df_dens.density #* np.exp()
 
 # perform particle swarm optimisation in parameter space on log likelihood
-rho0 = np.mean(densities[0:6])
+rho0 = 10**-3.8 #np.mean(densities[0:6])
 rmax = (r.max())
 rmin = (r.min())
 n_edges = 5
@@ -55,12 +61,12 @@ lb = [1, 1]
 ub = [1000, 8]
 
 # do particle swarm opti.
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 150)
+#theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 150)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
 
-ax.plot(r, densities, 'o')
+ax.plot(r, densities, 'o', alpha = 0.1, color = 'k')
 
 theta0 = np.array([634.5, 4.9])
 rplot = np.linspace((rmin),(rmax),500)

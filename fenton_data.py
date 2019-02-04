@@ -48,18 +48,25 @@ r0 = np.array([np.mean([event.x for event in events]), np.mean([event.y for even
 catalog['x'] = r0[0]- catalog.x # shift so that main shock position is (0,0)
 catalog['y'] = r0[1]-50 - catalog.y
 catalog['Distance_from_origin'] = (catalog.x**2 + catalog.y**2)**0.5
-# catalog = catalog[catalog.Distance_from_origin <= 10**2.6]
+catalog = catalog.dropna()
 
 # reduce events to a random sample of k elements
 #catalog = catalog.sample(frac=0.45, replace=False)
 #==============================================================================
 
-eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
+#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation')
 
-r, densities = eq.plot_ED(catalog, k = 62,  plot = False) # get distance, density
+N = len(catalog)
+k = 12 # int(N**0.5)
+
+r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
+df_dens = pd.DataFrame({'distance':r, 'density':densities})
+df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.6)]
+r = df_dens.distance
+densities = df_dens.density #* np.exp()
 
 # perform particle swarm optimisation in parameter space on log likelihood
-rho0 = np.mean(densities[0:6])
+rho0 = 10**-2.8# np.mean(densities[0:6])
 rmax = (r.max())
 rmin = (r.min())
 n_edges = 10
@@ -72,16 +79,16 @@ lb = [1, 1]
 ub = [1000, 6]
 
 # do particle swarm opti.
-theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
+#theta0, llk0 = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 200)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
 
-ax.plot(r, densities, 'o')
+ax.plot(r, densities, 'o', alpha = 0.1, color = 'k')
 
-#theta0 = np.array([140, 2.4])
+theta0 = np.array([290.4, 5.2])
 rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1], plot = True)),'-',color='r')
+#ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1], plot = True)),'-',color='r')
 for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
@@ -90,15 +97,3 @@ ax.set_yscale('log')
     
 print(datetime.now().timestamp() - start.timestamp())
 
-#f, ax = plt.subplots(1, figsize = (7,7))
-#n = 125
-#rc = np.linspace(50, 400, n)
-#gmma = np.linspace(1, 6, n)
-#X, Y = np.meshgrid(rc, gmma)
-#Z = np.zeros(np.shape(X))
-#for i in range(n):
-#    for j in range(n):
-#        Z[i][j] = eq.LLK_rho([X[i][j],Y[i][j]], rmax, rmin, r, rho0, bin_edges, n_edges)
-#cs = plt.contourf(X,Y,Z,80,colormap = 'plasma')
-#f.colorbar(cs, ax=ax)
-#plt.show()
