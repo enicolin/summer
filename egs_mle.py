@@ -61,18 +61,19 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'Year':[event.split()[0] for event in flines]})
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
 catalog = catalog.reindex(columns = cols)
-#catalog = catalog[catalog.Year == '2016'] # for RR
+catalog = catalog[catalog.Year == '2014'] # for RR
 N = len(catalog)
-k = 6 #int(N**0.5)
+k = 18 #int(N**0.5)
 
 eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = True, savepath = fname.split(sep='.')[0]+'_positions.png')
 
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 df_dens = pd.DataFrame({'distance':r, 'density':densities})
 df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.5)]
-r = df_dens.distance
-densities = df_dens.density
-
+r = np.array(df_dens.distance)
+densities = np.array(df_dens.density)
+#r = np.log10(r)
+#densities = np.log10(densities)
 
 # perform particle swarm optimisation in parameter space on log likelihood
 rho0 = np.mean(densities[0:6])
@@ -88,20 +89,19 @@ lb = [1, 1, 1e-8]
 ub = [1000, 6, 1]
 
 # do particle swarm opti.
-#theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 500, swarmsize = 500)
+theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 500, swarmsize = 500)
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,7))
 
-theta0 = np.array([212.8, 4.4, rho0])
+#theta0 = np.array([171.8, 4.4, rho0])
 ax.plot(r, densities, 'o', alpha = 0.6, color = 'k')
 rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1], plot = True)),'-',color='b')
+ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',color='b')
 for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
-
 
 print(datetime.now() - start)
 

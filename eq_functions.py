@@ -784,7 +784,6 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
 #    x = catalogs.x
 #    y = catalogs.y
     distance = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
-    n = len(distance) # total number of events
     
 #    MY PRIMITIVE kNN SEARCH - MUCHHHHHHHHHHHH SLOWER THAN USING KD TREES
 #     #get positions as list of numpy vectors
@@ -795,16 +794,19 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
 #    point_tree = spatial.KDTree(positions)
 #    density1 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
     
-    positions = list(zip(distance,np.zeros(len(distance))))
+    n = len(distance) # total number of events
+    positions = list(zip(distance,np.zeros(n)))
     dist_tree = spatial.KDTree(positions)
-    density0 = np.array([k/(n*(dist_tree.query(event, k = k)[0][-1] - dist_tree.query(event, k = k)[0][0])**2) for event in positions]) # density prior to rolling average
+    density0 = np.array([k/((dist_tree.query(event, k = k)[0][-1] - dist_tree.query(event, k = k)[0][0])) for event in positions]) # density prior to rolling average
     density = np.zeros(n)
-    for j in range(n-k):
-        denswindow = 0
-        for i in range(j,int(j+k)):
-            denswindow += density0[i]
-        density[j] = denswindow/(distance[j])#2*denswindow/k
 
+    for j in range(0,n-k):
+        denswindow = 0
+        for i in range(int(j),int(j+k)):
+            denswindow += density0[i]
+        density[j] = denswindow/((distance[int(j+k)])) #denswindow/np.mean((distance[int(j-k/2):int(j+k/2)]))#2*denswindow/k
+#    n = len(density[density>0])
+    density /= n
 
     if plot:
         f, ax = plt.subplots(1, figsize=(7,6))
@@ -835,16 +837,13 @@ def gcdist(R,lat1,lat2,long1,long2, deg = False):
     
     return 2*R*np.arcsin((hav(lat1,lat2,long1,long2))**0.5)
 
-def rho(r, rho0, rc, gmma, plot = False):
+def rho(r, rho0, rc, gmma):
     '''
     Return the functional form for event density fall-off as described by Goebel, Brodsky
     '''
     dens = rho0/(1+(r/rc)**(2*gmma))**0.5
-#    if plot:
+
     return dens
-#    dens = dens/(dens.min())
-#    return np.log10(dens)
-#    return np.log(rho0) - 0.5*np.log(1+(r/rc)**(2*gmma))
 
 def rho2(r, rho0, rc, gmma):
     '''
@@ -909,14 +908,28 @@ def gnom_y(lat, long, lat0, long0, deg = True):
 
 def robj(prms, *args):
     '''
-    Objective function to be minimised for model fit. Weighted least squares function. Assumes normally distributed errors
+    Objective function to be minimised for model fit. Weighted least squares function.
     '''
     rc, gmma, rho0 = prms
     r, dens, bin_edges = args
     
-    r = -np.sum((dens-rho(r, rho0, rc, gmma))**2)
+    obj = 0
+    var = []
+    n_app = 0
+    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
+        m = len(np.intersect1d(r[r>=be_a], r[r<be_b])) # number of events in current bin interval
+        dens_i = dens[i:i+m]
+        var_i = np.std(dens_i)**2 if m>1 else 1
+        for k in range(m):
+            var.append(var_i)
+            n_app += 1
+    var.append(var_i)
+    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
+        var.append(var_i)
+    var = np.array(var)
+    obj = -np.sum((dens-rho(r, rho0, rc, gmma))**2/var)
     
-    return -r
+    return -obj
     
     
     
