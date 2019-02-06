@@ -28,7 +28,7 @@ flines = f.readlines()
 
 f.close()
 rr = [42.087593, -113.387119]
-nwb = [43.726179, -121.309841]
+nwb = [43.726179, -121.309841] #  43.726066, -121.310861 ; 43.726208, -121.309869 ; 43.726179, -121.309841
 metrics = pd.DataFrame({'lat0':[nwb[0], rr[0]],
                         'long0':[nwb[1], rr[1]],
                         't0':[datetime(2012, 10, 29, hour=8, minute=2, second=21), datetime(2010, 10, 2 , hour=8, minute=13, second=26)]},
@@ -61,22 +61,23 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'Year':[event.split()[0] for event in flines]})
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
 catalog = catalog.reindex(columns = cols)
-catalog = catalog[catalog.Year == '2014'] # for RR
+#catalog = catalog[catalog.Year == '2014'] # for RR
+#catalog = catalog[(catalog.Distance_from_origin > 10**1.2) & (catalog.Distance_from_origin < 10**2.5)]
 N = len(catalog)
-k = 18 #int(N**0.5)
+k = 12 #int(N**0.5)
 
-eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = True, savepath = fname.split(sep='.')[0]+'_positions.png')
+#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 df_dens = pd.DataFrame({'distance':r, 'density':densities})
-df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.5)]
+df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.8)]
 r = np.array(df_dens.distance)
 densities = np.array(df_dens.density)
 #r = np.log10(r)
 #densities = np.log10(densities)
 
 # perform particle swarm optimisation in parameter space on log likelihood
-rho0 = np.mean(densities[0:6])
+rho0 = np.mean(densities[0:100])
 rmax = (r.max())
 rmin = (r.min())
 n_edges = 10
@@ -89,15 +90,16 @@ lb = [1, 1, 1e-8]
 ub = [1000, 6, 1]
 
 # do particle swarm opti.
-theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 500, swarmsize = 500)
+theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 100, swarmsize = 1000)
 
 # plots
-f, ax = plt.subplots(1, figsize = (7,7))
+f, ax = plt.subplots(1, figsize = (7,4))
 
-#theta0 = np.array([171.8, 4.4, rho0])
-ax.plot(r, densities, 'o', alpha = 0.6, color = 'k')
+theta1 = np.array([212.8, 4.4, rho0])
+ax.plot(r, densities, 'o') #, alpha = 0.6, color = 'k')
 rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',color='b')
+ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',color='r')
+ax.plot(rplot, (eq.rho(rplot, theta1[2], theta1[0], theta1[1])),'-',color='b')
 for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')

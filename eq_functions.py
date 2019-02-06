@@ -781,9 +781,9 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
     catalogs = catalogs.sort_values(by = ['Distance_from_origin']) # sort by distance
     
-#    x = catalogs.x
-#    y = catalogs.y
-    distance = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
+    x = catalogs.x
+    y = catalogs.y
+    r = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
     
 #    MY PRIMITIVE kNN SEARCH - MUCHHHHHHHHHHHH SLOWER THAN USING KD TREES
 #     #get positions as list of numpy vectors
@@ -794,31 +794,45 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
 #    point_tree = spatial.KDTree(positions)
 #    density1 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
     
-    n = len(distance) # total number of events
-    positions = list(zip(distance,np.zeros(n)))
-    dist_tree = spatial.KDTree(positions)
-    density0 = np.array([k/((dist_tree.query(event, k = k)[0][-1] - dist_tree.query(event, k = k)[0][0])) for event in positions]) # density prior to rolling average
-    density = np.zeros(n)
+    n = len(r) # total number of events
+#    positions = list(zip(distance,np.zeros(n)))
+#    dist_tree = spatial.KDTree(positions)
+#    ind = [dist_tree.query(event, k = k)[1] for event in positions] # get indices of kNN for ith event
+##    kNN_dist = np.array([((dist_tree.query(event, k = k)[0][-1] - dist_tree.query(event, k = k)[0][0])) for event in positions])
+#    kNN_dist = np.array([distance[max(indi)] - distance[min(indi)] for indi in ind])
+#    density0 = k/(np.pi*kNN_dist**2) # density prior to rolling average
+#    density = np.zeros(n)
 
-    for j in range(0,n-k):
-        denswindow = 0
-        for i in range(int(j),int(j+k)):
-            denswindow += density0[i]
-        density[j] = denswindow/((distance[int(j+k)])) #denswindow/np.mean((distance[int(j-k/2):int(j+k/2)]))#2*denswindow/k
-#    n = len(density[density>0])
-    density /= n
+    density0 = np.zeros(n)
+    positions = np.array([[i] for i in r])
+    dist_tree = spatial.KDTree(positions)
+    for i, ri in enumerate(r):
+        dist, ind = dist_tree.query(np.array([[ri]]), k = k)
+        density0[i] = k/(np.pi * (float(r[ind.max()] - r[ind.min()]))**2)
+
+
+#    density0 = np.zeros(n)
+#    positions = np.array([[i] for i in r])
+#    dist_tree = spatial.KDTree(positions)
+#    for i in range(int(n-k/2)):
+#        ind = [dist_tree.query(np.array([[rj]]), k = k)[1] for rj in r[int(i):int(i+k)]]
+#        density0[i] = k/(np.pi * np.mean([float(r[ii.max()] - r[ii.min()])**2 for ii in ind]))                #k/(np.pi * (float(r[ind.max()] - r[ind.min()]))**2)
+
+#    for j in range(int(0),int(n-k)):
+#        denswindow = (density0[int(j):int(j+k)])
+#        density[j] = np.mean(denswindow) #np.mean(denswindow/distance[int(j-k/2):int(j+k/2)]**2)
 
     if plot:
         f, ax = plt.subplots(1, figsize=(7,6))
-        ax.plot(distance, density, 'o')
+        ax.plot(r, density0, 'o')
         ax.set_yscale('log')#, nonposy = 'clip')
         ax.set_xlabel('distance from main shock')
         ax.set_ylabel('event density')
-        ax.set_ylim(0,density.max())
+        ax.set_ylim(0,r.max())
         ax.set_xscale('log')#, nonposx = 'clip')
         plt.show()
 
-    return distance, density
+    return r, density0
     
 #    
 def hav(lat1,lat2,long1,long2):
@@ -913,21 +927,21 @@ def robj(prms, *args):
     rc, gmma, rho0 = prms
     r, dens, bin_edges = args
     
-    obj = 0
-    var = []
-    n_app = 0
-    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
-        m = len(np.intersect1d(r[r>=be_a], r[r<be_b])) # number of events in current bin interval
-        dens_i = dens[i:i+m]
-        var_i = np.std(dens_i)**2 if m>1 else 1
-        for k in range(m):
-            var.append(var_i)
-            n_app += 1
-    var.append(var_i)
-    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
-        var.append(var_i)
-    var = np.array(var)
-    obj = -np.sum((dens-rho(r, rho0, rc, gmma))**2/var)
+#    obj = 0
+#    var = []
+#    n_app = 0
+#    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
+#        m = len(np.intersect1d(r[r>=be_a], r[r<be_b])) # number of events in current bin interval
+#        dens_i = dens[i:i+m]
+#        var_i = np.std(dens_i)**2 if m>1 else 1
+#        for k in range(m):
+#            var.append(var_i)
+#            n_app += 1
+#    var.append(var_i)
+#    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
+#        var.append(var_i)
+#    var = np.array(var)
+    obj = -np.sum((dens-rho(r, rho0, rc, gmma))**2)
     
     return -obj
     
