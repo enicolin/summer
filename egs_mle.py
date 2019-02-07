@@ -70,7 +70,8 @@ k = 12 #int(N**0.5)
 
     # plots
 #f, ax = plt.subplots(1, figsize = (7,4))
-for M in range(int(N/5),N,int(N/5)):
+prts = int(N/10)
+for M in range(prts,N,prts):
     r, densities = eq.plot_ED(catalog[:M], k = k,  plot = False) # get distance, density
     df_dens = pd.DataFrame({'distance':r, 'density':densities})
     df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.8)]
@@ -108,6 +109,7 @@ for M in range(int(N/5),N,int(N/5)):
     #    ax.axvline(be,color='k',linestyle=':')
     ax.set_xscale('log')
     ax.set_yscale('log')
+    print(theta0[1])
     #==============================================================================
 
 
