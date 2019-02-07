@@ -792,23 +792,23 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
     
 #    positions = list(zip(x.ravel(), y.ravel()))
 #    point_tree = spatial.KDTree(positions)
-#    density1 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
+#    density0 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
     
     n = len(r) # total number of events
-#    positions = list(zip(distance,np.zeros(n)))
+#    positions = list(zip(r,np.zeros(n)))
 #    dist_tree = spatial.KDTree(positions)
 #    ind = [dist_tree.query(event, k = k)[1] for event in positions] # get indices of kNN for ith event
 ##    kNN_dist = np.array([((dist_tree.query(event, k = k)[0][-1] - dist_tree.query(event, k = k)[0][0])) for event in positions])
-#    kNN_dist = np.array([distance[max(indi)] - distance[min(indi)] for indi in ind])
+#    kNN_dist = np.array([r[max(indi)] - r[min(indi)] for indi in ind])
 #    density0 = k/(np.pi*kNN_dist**2) # density prior to rolling average
-#    density = np.zeros(n)
+##    density = np.zeros(n)
 
     density0 = np.zeros(n)
     positions = np.array([[i] for i in r])
     dist_tree = spatial.KDTree(positions)
     for i, ri in enumerate(r):
         dist, ind = dist_tree.query(np.array([[ri]]), k = k)
-        density0[i] = k/(np.pi * (float(r[ind.max()] - r[ind.min()]))**2)
+        density0[i] = k/(np.pi * (float(r[ind.max()]**2 - r[ind.min()]**2)))
 
 
 #    density0 = np.zeros(n)
@@ -875,6 +875,13 @@ def rho_dbl(r, rho0, rc, gmma, r0, a):
     '''
     return 2 * rho0/((r0**2-(r-a)**2)/(1+(r/rc)**(2*gmma)))**0.5
 
+def rho_lin(r, rho0, rc, gmma, r0):
+    '''
+    linear approxmiation to rho at r0
+    '''
+    dens = rho0/(1+(r0/rc)**(2*gmma))**0.5 -(rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5 * (r-r0)
+    return dens
+    
 def LLK_rho(theta,*const):
     '''
     Log likelihood function for radial event density.
@@ -887,22 +894,33 @@ def LLK_rho(theta,*const):
     rc, gmma = theta
     rmax, rmin, r, bin_edges, n_edges, rho0 = const
     
-    eps = np.finfo(float).eps
-    r0 = bin_edges[1]-bin_edges[0]
+    eps = 1e-8 #np.finfo(float).eps
+#    r0 = bin_edges[1]-bin_edges[0]
     llk = 0
     for i in range(1, n_edges-1):
-        nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
-        nobs = max(eps,nobs)
-#        factor = 1 # np.pi * (bin_edges[i+1] - bin_edges[i])**2
-#        integral = integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] #/(bin_edges[i+1] - bin_edges[i])
-#        integral = integrate.dblquad(rho, bin_edges[i-1], bin_edges[i+1], lambda rv: -np.sqrt(r0**2-(rv-bin_edges[i])**2), lambda rv: np.sqrt(r0**2-(rv-bin_edges[i])**2), args = (rho0, rc, gmma))[0]
-        a = bin_edges[i]
-        integral = integrate.quad(rho_dbl, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma, r0, a))[0]
-        nexp = integral# * factor
-        nexp = max(eps, nexp)
-        #llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
-        llk += (nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1))#/nobs
+        nobs = len(np.intersect1d(r[r>=bin_edges[i-1]], r[r<=bin_edges[i+1]]))
+#        nobs = max(eps,nobs)
+#        factor = 2 * np.pi # np.pi * (bin_edges[i+1] - bin_edges[i])**2
+#        integral = integrate.quad(rho_lin, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma, bin_edges[i-]))[0]
+        r0 = bin_edges[i]
+        A = rho0/(1+(r0/rc)**(2*gmma))**0.5 # coefficients for linear approximation to density function
+        B = (rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5
+        a = bin_edges[i-1]
+        b = bin_edges[i+1]
+        integral = abs((A+B*r0)*(b-a) + 0.5*B*(a**2-b**2)) + eps
 
+        nexp = integral# * factor
+#        nexp = max(eps, nexp)
+        #llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
+#        if nobs <= 0 or nexp <= 0:
+#            print(nobs, nexp)
+            
+        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - log(np.math.factorial(nobs)))#(nobs*log(nobs) - nobs + 1))#/nobs
+
+#    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
+#    intgrl = 2*np.pi* integrate.quad(rho, 0, rmax, args = (rho0, rc, gmma))[0]
+#    llk = sumlog - intgrl
+    
     return -llk
 
 def gnom_x(lat, long, lat0, long0, deg = True):
