@@ -68,42 +68,79 @@ k = 12 #int(N**0.5)
 
 #eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 
-r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
-df_dens = pd.DataFrame({'distance':r, 'density':densities})
-df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.8)]
-r = np.array(df_dens.distance)
-densities = np.array(df_dens.density)
-#r = np.log10(r)
-#densities = np.log10(densities)
+    # plots
+#f, ax = plt.subplots(1, figsize = (7,4))
+for M in range(int(N/5),N,int(N/5)):
+    r, densities = eq.plot_ED(catalog[:M], k = k,  plot = False) # get distance, density
+    df_dens = pd.DataFrame({'distance':r, 'density':densities})
+    df_dens = df_dens[(df_dens.distance > 10**1.2) & (df_dens.distance < 10**2.8)]
+    r = np.array(df_dens.distance)
+    densities = np.array(df_dens.density)
+    #r = np.log10(r)
+    #densities = np.log10(densities)
+    
+    #==============================================================================
+    # perform particle swarm optimisation (least squares obj)
+    rho0 = np.mean(densities[0:100])
+    rmax = (r.max())
+    rmin = (r.min())
+    n_edges = 10
+    bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+    bin_edges = 10**bin_edges
+    #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+    const = (r, densities, bin_edges)
+    
+    lb = [1, 1, 1e-8]
+    ub = [1000, 6, 1]
+    
+    # do particle swarm opti.
+    theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 100, swarmsize = 1000)
+    
+#    # plots
+    f, ax = plt.subplots(1, figsize = (7,4))
+    
+    theta1 = np.array([212.8, 4.4, rho0])
+    ax.plot(r, densities, 'o') #, alpha = 0.6, color = 'k')
+    rplot = np.linspace((rmin),(rmax),500)
+    ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',color='r')
+    ax.plot(rplot, (eq.rho(rplot, theta1[2], theta1[0], theta1[1])),'-',color='b')
+    #for be in bin_edges:
+    #    ax.axvline(be,color='k',linestyle=':')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    #==============================================================================
 
-# perform particle swarm optimisation in parameter space on log likelihood
-rho0 = np.mean(densities[0:100])
-rmax = (r.max())
-rmin = (r.min())
-n_edges = 10
-bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-bin_edges = 10**bin_edges
+
+#==============================================================================
+# perform particle swarm optimisation (MLE)
+#rho0 = np.mean(densities[0:100])
+#rmax = (r.max())
+#rmin = (r.min())
+#n_edges = 100
+##bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+##bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-const = (r, densities, bin_edges)
-
-lb = [1, 1, 1e-8]
-ub = [1000, 6, 1]
-
-# do particle swarm opti.
-theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 100, swarmsize = 1000)
-
-# plots
-f, ax = plt.subplots(1, figsize = (7,4))
-
-theta1 = np.array([212.8, 4.4, rho0])
-ax.plot(r, densities, 'o') #, alpha = 0.6, color = 'k')
-rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',color='r')
-ax.plot(rplot, (eq.rho(rplot, theta1[2], theta1[0], theta1[1])),'-',color='b')
-for be in bin_edges:
-    ax.axvline(be,color='k',linestyle=':')
-ax.set_xscale('log')
-ax.set_yscale('log')
+#const = (rmax, rmin, r, bin_edges, n_edges, rho0)
+#
+#lb = [1, 1]
+#ub = [1000, 6]
+#
+## do particle swarm opti.
+#theta0, obj = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 100)
+#
+## plots
+#f, ax = plt.subplots(1, figsize = (7,4))
+#
+#theta1 = np.array([212.8, 4.4])
+#ax.plot(r, densities, 'o') #, alpha = 0.6, color = 'k')
+#rplot = np.linspace((rmin),(rmax),500)
+#ax.plot(rplot, (eq.rho(rplot, rho0, theta0[0], theta0[1])),'-',color='r')
+#ax.plot(rplot, (eq.rho(rplot, rho0, theta1[0], theta1[1])),'-',color='b')
+#for be in bin_edges:
+#    ax.axvline(be,color='k',linestyle=':')
+#ax.set_xscale('log')
+#ax.set_yscale('log')
+#==============================================================================
 
 print(datetime.now() - start)
 

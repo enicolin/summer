@@ -781,8 +781,8 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
     catalogs = catalogs.sort_values(by = ['Distance_from_origin']) # sort by distance
     
-    x = catalogs.x
-    y = catalogs.y
+#    x = catalogs.x
+#    y = catalogs.y
     r = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
     
 #    MY PRIMITIVE kNN SEARCH - MUCHHHHHHHHHHHH SLOWER THAN USING KD TREES
@@ -855,7 +855,8 @@ def rho(r, rho0, rc, gmma):
     '''
     Return the functional form for event density fall-off as described by Goebel, Brodsky
     '''
-    dens = rho0/(1+(r/rc)**(2*gmma))**0.5
+#    dens = rho0/(1+(r/rc)**(2*gmma))**0.5
+    dens = np.exp(np.log(rho0) - 0.5*np.log(1+(r/rc)**(2*gmma)))
 
     return dens
 
@@ -868,6 +869,12 @@ def rho2(r, rho0, rc, gmma):
     
     return rho0*(a + b)
 
+def rho_dbl(r, rho0, rc, gmma, r0, a):
+    '''
+    for double integral
+    '''
+    return 2 * rho0/((r0**2-(r-a)**2)/(1+(r/rc)**(2*gmma)))**0.5
+
 def LLK_rho(theta,*const):
     '''
     Log likelihood function for radial event density.
@@ -878,16 +885,20 @@ def LLK_rho(theta,*const):
     llk -> log likelihood, function of parameters
     '''
     rc, gmma = theta
-    rmax, rmin, r, rho0, bin_edges, n_edges = const
+    rmax, rmin, r, bin_edges, n_edges, rho0 = const
     
     eps = np.finfo(float).eps
+    r0 = bin_edges[1]-bin_edges[0]
     llk = 0
-    for i in range(n_edges-1):
+    for i in range(1, n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i]], r[r<bin_edges[i+1]]))
         nobs = max(eps,nobs)
-        factor = np.pi * (bin_edges[i+1] - bin_edges[i])**2
-        integral = integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0]/(bin_edges[i+1] - bin_edges[i])
-        nexp = factor*integral 
+#        factor = 1 # np.pi * (bin_edges[i+1] - bin_edges[i])**2
+#        integral = integrate.quad(rho, bin_edges[i], bin_edges[i+1], args = (rho0, rc, gmma))[0] #/(bin_edges[i+1] - bin_edges[i])
+#        integral = integrate.dblquad(rho, bin_edges[i-1], bin_edges[i+1], lambda rv: -np.sqrt(r0**2-(rv-bin_edges[i])**2), lambda rv: np.sqrt(r0**2-(rv-bin_edges[i])**2), args = (rho0, rc, gmma))[0]
+        a = bin_edges[i]
+        integral = integrate.quad(rho_dbl, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma, r0, a))[0]
+        nexp = integral# * factor
         nexp = max(eps, nexp)
         #llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
         llk += (nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1))#/nobs
