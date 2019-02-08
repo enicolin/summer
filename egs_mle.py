@@ -19,7 +19,7 @@ random.seed(1756)
 start = datetime.now()
 
 #k = 2000 # max number of events considered
-fname = 'raft_river.txt'
+fname = 'newberry.txt'
 f = open(fname, 'r')
 flines = f.readlines()
 
@@ -61,59 +61,64 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'Year':[event.split()[0] for event in flines]})
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
 catalog = catalog.reindex(columns = cols)
-catalog = catalog[catalog.Year == metrics.loc[fname].year]
+#catalog = catalog[catalog.Year == metrics.loc[fname].year]
+catalog = catalog[(catalog.Distance_from_origin > metrics.loc[fname].rl) & (catalog.Distance_from_origin < metrics.loc[fname].ru)]
 N = len(catalog)
 k = 20 #int(N**0.5)
 
 eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = True, savepath = fname.split(sep='.')[0]+'_positions.png')
 
 # plots
-#f, ax = plt.subplots(1, figsize = (7,4))
-#prts = int(N/10)
-#for M in range(prts,N,prts):
-r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
-densities *= 10
-df_dens = pd.DataFrame({'distance':r, 'density':densities})
-df_dens = df_dens[(df_dens.distance > metrics.loc[fname].rl) & (df_dens.distance < metrics.loc[fname].ru)]
-r = np.array(df_dens.distance)
-densities = np.array(df_dens.density)
-#r = np.log10(r)
-#densities = np.log10(densities)
-
-#==============================================================================
-# perform particle swarm optimisation (least squares obj)
-rho0 = np.mean(densities[0:100])
-rmax = (r.max())
-rmin = (r.min())
-n_edges = 10
-bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-bin_edges = 10**bin_edges
-#bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-const = (r, densities, bin_edges)
-
-lb = [1, 1, 1e-4]
-ub = [1000, 6, 1]
-
-# do particle swarm opti.
-theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 100, swarmsize = 500)
-
-# plots
 f, ax = plt.subplots(1, figsize = (7,4))
-
-#theta1 = np.array([212.8, 4.4, rho0])
-theta1 = np.array([350, 2.6, rho0])
-ax.plot(r, densities, 'o') #, alpha = 0.6, color = 'k')
-rplot = np.linspace((rmin),(rmax),500)
-
-ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',color='r')
-#ax.plot(rplot, (eq.rho(rplot, theta1[2], theta1[0], theta1[1])),'-',color='b')
+prts = np.ceil(np.linspace(N/4,N,4))
+for m in prts:
+    r, densities = eq.plot_ED(catalog[:int(m)], k = k,  plot = False) # get distance, density
+    densities *= 10
+    df_dens = pd.DataFrame({'distance':r, 'density':densities})
+    r = np.array(df_dens.distance)
+    densities = np.array(df_dens.density)
+    #r = np.log10(r)
+    #densities = np.log10(densities)
+    
+    #==============================================================================
+    # perform particle swarm optimisation (least squares obj)
+    rho0 = np.mean(densities[0:100])
+    rmax = r.max()
+    rmin = r.min()
+    n_edges = 10
+    bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+    bin_edges = 10**bin_edges
+    #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+    const = (r, densities, bin_edges)
+    
+    lb = [1, 1, 1e-4]
+    ub = [1000, 6, 1]
+    
+    # do particle swarm opti.
+    theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 100, swarmsize = 500)
+    
+#        # plots
+#    f, ax = plt.subplots(1, figsize = (7,4))
+    
+    #theta1 = np.array([212.8, 4.4, rho0])
+    #    theta1 = np.array([350, 2.6, rho0])
+    ax.plot(r, densities, 'o', alpha = 0.6)#, color = 'k')
+    rplot = np.linspace((rmin),(rmax),500)
+    
+#    ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-',label=catalog.iloc[int(m-1)].Time)#,color='r')
+        #ax.plot(rplot, (eq.rho(rplot, theta1[2], theta1[0], theta1[1])),'-',color='b')
+    #    for be in bin_edges:
+    #        ax.axvline(be,color='k',linestyle=':')
+    #    ax.set_xscale('log')
+    #    ax.set_yscale('log')
+    #    ax.set_title(fname.split(sep=".")[0]+" "+metrics.loc[fname].year)
+    #==============================================================================
+ax.legend(loc='best')
 for be in bin_edges:
     ax.axvline(be,color='k',linestyle=':')
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0]+" "+metrics.loc[fname].year)
-#==============================================================================
-
 
 #==============================================================================
 ## perform particle swarm optimisation (MLE)
