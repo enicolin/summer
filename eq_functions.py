@@ -808,7 +808,7 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
     dist_tree = spatial.KDTree(positions)
     for i, ri in enumerate(r):
         dist, ind = dist_tree.query(np.array([[ri]]), k = k)
-        density0[i] = k/(np.pi * (float(r[ind.max()]**2 - r[ind.min()]**2)))
+        density0[i] = k/((ri*float(r[ind.max()] - r[ind.min()])))
 
 
 #    density0 = np.zeros(n)
@@ -962,7 +962,7 @@ def robj(prms, *args):
 #    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
 #        m = len(np.intersect1d(r[r>=be_a], r[r<be_b])) # number of events in current bin interval
 #        dens_i = dens[i:i+m]
-#        var_i = np.std(dens_i)**2 if m>1 else 1
+#        var_i = np.std(np.log10(dens_i))**2 if m>1 else 1
 #        for k in range(m):
 #            var.append(var_i)
 #            n_app += 1
@@ -970,7 +970,8 @@ def robj(prms, *args):
 #    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
 #        var.append(var_i)
 #    var = np.array(var)
-    obj = -np.sum((dens-rho(r, rho0, rc, gmma))**2)
+    
+    obj = -np.sum(((dens-rho(r, rho0, rc, gmma))/dens)**2)
     
     return -obj
     
