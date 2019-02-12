@@ -7,6 +7,8 @@ from scipy import spatial
 from scipy import integrate
 from scipy.ndimage.filters import gaussian_filter1d
 import mpmath as mp
+from scipy.special import erf
+from mpmath import e1 as W
 #from itertools import compress
 
 class Event:
@@ -808,7 +810,7 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
     dist_tree = spatial.KDTree(positions)
     for i, ri in enumerate(r):
         dist, ind = dist_tree.query(np.array([[ri]]), k = k)
-        density0[i] = k/((ri*float(r[ind.max()] - r[ind.min()])))
+        density0[i] = k/(np.pi*(float(r[ind.max()]**2 - r[ind.min()]**2)))
 
 
 #    density0 = np.zeros(n)
@@ -869,12 +871,6 @@ def rho2(r, rho0, rc, gmma):
     
     return rho0*(a + b)
 
-def rho_dbl(r, rho0, rc, gmma, r0, a):
-    '''
-    for double integral
-    '''
-    return 2 * rho0/((r0**2-(r-a)**2)/(1+(r/rc)**(2*gmma)))**0.5
-
 def rho_lin(r, rho0, rc, gmma, r0):
     '''
     linear approxmiation to rho at r0
@@ -916,10 +912,6 @@ def LLK_rho(theta,*const):
 #            print(nobs, nexp)
             
         llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - log(np.math.factorial(nobs)))#(nobs*log(nobs) - nobs + 1))#/nobs
-
-#    sumlog = np.sum(np.log(rho(r, rho0, rc, gmma)))
-#    intgrl = 2*np.pi* integrate.quad(rho, 0, rmax, args = (rho0, rc, gmma))[0]
-#    llk = sumlog - intgrl
     
     return -llk
 
@@ -975,7 +967,108 @@ def robj(prms, *args):
     
     return -obj
     
+def p1D(r0, *args):
+    '''
+    Non-dimensional solution for maximum pressure along radius r in 1D.
+    Option to redimensionalise
+    '''
+    r = r0.copy()
+    dml, T, alpha, k, q, nu = args
+    if dml:
+        R = (4*alpha*T)**0.5
+        r /= R
+        p = 4*(np.pi)**0.5*((1+2*r**2)**0.5*np.exp(-r**2/(1+2*r**2)) - 2**0.5*r*np.exp(-0.5) - np.pi**0.5*r*(1-erf(r/(1+2*r**2)**0.5)-(1-erf(1/2**0.5))))
+        p_dim_scale = 2*np.pi*k*(alpha*T)**-0.5/(q*nu)
+        p *= p_dim_scale
+    else:
+        p = 4*(np.pi)**0.5*((1+2*r**2)**0.5*np.exp(-r**2/(1+2*r**2)) - 2**0.5*r*np.exp(-0.5) - np.pi**0.5*r*(1-erf(r/(1+2*r**2)**0.5)-(1-erf(1/2**0.5))))
+    return p
+#
+#def p2D(r, dml = False, **kwargs):
+#    '''
+#    Non-dimensional solution for maximum pressure along radius r in 1D.
+#    Option to redimensionalise
+#    '''
+#    if type(r) == np.ndarray or type(r) == list:
+#        if dml:
+#            T = kwargs.pop('T')
+#            alpha = kwargs.pop('alpha')
+#            k = kwargs.pop('k')
+#            q = kwargs.pop('q')
+#            nu = kwargs.pop('nu')
+#            R = (4*alpha*T)**0.5
+#            r /= R
+#            p = np.array([np.float(W(1/(1+1/ri**2))) for ri in r])  - np.float(W(1))
+#            p_dim_scale = 2*np.pi*k*(alpha*T)**-0.5/(q*nu)
+#            p *= p_dim_scale
+#        else:
+#            p = np.array([np.float(W(1/(1+1/ri**2))) for ri in r])  - np.float(W(1))
+#    else:
+#        if dml:
+#            T = kwargs.pop('T')
+#            alpha = kwargs.pop('alpha')
+#            k = kwargs.pop('k')
+#            q = kwargs.pop('q')
+#            nu = kwargs.pop('nu')
+#            R = (4*alpha*T)**0.5
+#            r /= R
+#            p = np.float(W(1/(1+1/r**2))) - np.float(W(1))
+#            p_dim_scale = 2*np.pi*k*(alpha*T)**-0.5/(q*nu)
+#            p *= p_dim_scale
+#        else:
+#            p = np.float(W(1/(1+1/r**2))) - np.float(W(1))
+#    return p
+
+def p3D(r0, *args):
+    '''
+    Non-dimensional solution for maximum pressure along radius r in 1D.
+    Option to redimensionalise
+    '''
+    r = r0.copy()
+    dml, T, alpha, k, q, nu = args
+    if dml:
+        R = (4*alpha*T)**0.5
+#        if R == 0:
+#            print('R = 0')
+        r /= R
+        p = 1/r*(1-erf(r/(1+2*r**2/3)**0.5) - (1-erf(1.5**0.5)))
+        p_dim_scale = 8*np.pi*k*(alpha*T)**0.5/(q*nu)
+        p *= p_dim_scale
+    else:
+        p = 1/r*(-erf(r/(1+2*r**2/3)**0.5) + (erf(1.5**0.5)))
+    return p
+
+def llk_diff(theta,*const):
+    '''
+    Log likelihood function for radial event density, diffusion model.
+    Inputs:
+    theta -> 1d array-like of parameters in order rc, gmma
+    *const -> (required) arguments specifying rho0, rmax, r vector
+    Outupts:
+    llk -> log likelihood, function of parameters
+    '''
+    alpha, k, nu, q = theta
+    rmax, rmin, r, bin_edges, n_edges, T = const
     
+#    args = (True, T, alpha, k, q, nu)
+    llk = 0
+    for a, b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
+        nobs = len(np.intersect1d(r[r>=a], r[r<=b]))
+#        integral = integrate.quad(p3D, a, b, args = args)[0]
+        r0 = bin_edges[i+1]
+        A = p3D(r0, True, T, alpha, k, q, nu)
+        B = -1/r0**2*(erf(1.5**0.5) - erf(r0/(1+2/3*r0**2)**0.5)) + 1/r0*(-2/np.pi**0.5 * ((1+2/3*r0**2)**0.5-2/3*r0**2*(1+2/3*r0**2)**-0.5)/(1+2/3*r0**2)*np.exp(-r0**2/(1+2/3*r0**2)))
+        integral = (A-B*r0)*(b-a) + 0.5*B*(b**2-a**2)        
+        nexp = integral
+            
+        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - log(np.math.factorial(nobs)))#(nobs*log(nobs) - nobs + 1))#/nobs
     
+    return -llk
+
+def robj_diff(theta, *const):
+    alpha, k, nu, q, T = theta
+    r, dens = const
+
+    obj = -np.sum(((dens-p3D(r, True, T, alpha, k, q, nu))/1)**2)
     
-    
+    return -obj
