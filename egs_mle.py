@@ -18,7 +18,6 @@ random.seed(1756)
 
 start = datetime.now()
 
-#k = 2000 # max number of events considered
 fname = 'newberry.txt'
 f = open(fname, 'r')
 flines = f.readlines()
