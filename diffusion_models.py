@@ -65,8 +65,8 @@ catalog = catalog[catalog.Year == metrics.loc[fname].year]
 catalog = catalog[(catalog.Distance_from_origin < metrics.loc[fname].ru) & (catalog.Distance_from_origin > metrics.loc[fname].rl)]
 
 N = len(catalog)
-k = 20
-#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
+k = 22
+#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Density', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 
 # David's models
@@ -114,18 +114,23 @@ bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 const = (r, densities, bin_edges)
 
-lb = [1e-8, 1, 1e-19, 1e-10, 1e-9, 1e-16]
-ub = [1e2, 1e9, 1e2, 1e0, 1e3, 1e20]
+#lb = [1e-7, 1e-15, 1e-8, 1e-4, 1e6]
+#ub = [1e-5, 1e-7, 1e-5, 1e-3, 1e7]
+#alpha, k, nu, q, T  = theta
+lb = [1e-1,1e-5]
+ub = [1e2, 1e7]
+# alphaT, knuq
 bounds = [(low, high) for low, high in zip(lb,ub)] # L-BFGS-B bounds
-#alpha, T, k, nu, q  = theta
+
 
 # do particle swarm opti.
-theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 200, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)
-#theta_guess = np.array([  8.00000000e-11,   7.68417736e+08,   7.63685917e+01, 4.65534682e-01,   9.04412151e+02]) # 2D initial guess
+theta_guess, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 500, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)
+#theta_guess = np.array([  5.84469266e+04,   9.99998849e+05,   8.99666895e+01, 4.87798639e-01,   1.00000000e-09]) # 2D initial guess
 #theta_guess = np.array([  20.00000000e-14,   7.68417736e+08,   7.63685917e+01, 4.65534682e-01,   9.04412151e+02]) # 3D initial guess
-#minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"COBYLA"}
-#annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs)
-#theta0 = annealed.x
+#theta_guess = np.array([  7.50000000e-11,   19.68417736e+21]) # 3D initial guess
+minimizer_kwargs = {"args":const, "bounds":bounds, "method":"L-BFGS-B"}
+annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 10000, T =1e40)
+theta0 = annealed.x
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,4))
@@ -133,7 +138,7 @@ f, ax = plt.subplots(1, figsize = (7,4))
 ax.plot(r, densities, 'o') 
 #ax.set_ylim(ax.get_ylim())
 rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, eq.p2D(rplot, theta0[0], theta0[1], theta0[2], theta0[3], theta0[4], theta0[5]),'-',color='r')
+ax.plot(rplot, eq.p2D(rplot, theta0[0], theta0[1]),'-',color='r')
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0])
@@ -159,11 +164,12 @@ ax.set_title(fname.split(sep=".")[0])
 #ub = [1000, 6, 1]
 #
 ## do particle swarm opti.
-#theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 100, swarmsize = 500)
+##theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 1000, swarmsize = 500)
 #
 #f, ax = plt.subplots(1, figsize = (7,4))
 #ax.plot(r, densities, 'o', alpha = 0.3)
 #rplot = np.linspace((rmin),(rmax),500)
+#theta0 = [212.8, 4.4, np.mean(densities[:5])]
 #ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-')
 #ax.set_title(fname.split(sep=".")[0]+" "+metrics.loc[fname].year)
 ##for be in bin_edges:
@@ -172,7 +178,7 @@ ax.set_title(fname.split(sep=".")[0])
 #ax.set_yscale('log')
 #==============================================================================
 ## perform particle swarm optimisation (MLE)
-#rho0 = np.mean(densities[0:100])
+#rho0 = np.mean(densities[0:5])
 #rmax = (r.max())
 #rmin = (r.min())
 #n_edges = 32
@@ -185,7 +191,7 @@ ax.set_title(fname.split(sep=".")[0])
 #ub = [900, 6]
 #
 ## do particle swarm opti.
-#theta0, obj = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 100)
+#theta0, obj = pso(eq.LLK_rho, lb, ub, args = const, maxiter = 100, swarmsize = 500)
 #
 ## plots
 #f, ax = plt.subplots(1, figsize = (7,4))

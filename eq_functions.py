@@ -890,20 +890,20 @@ def LLK_rho(theta,*const):
     rc, gmma = theta
     rmax, rmin, r, bin_edges, n_edges, rho0 = const
     
-    eps = 1e-8 #np.finfo(float).eps
+
 #    r0 = bin_edges[1]-bin_edges[0]
     llk = 0
     for i in range(1, n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i-1]], r[r<=bin_edges[i+1]]))
 #        nobs = max(eps,nobs)
 #        factor = 2 * np.pi # np.pi * (bin_edges[i+1] - bin_edges[i])**2
-#        integral = integrate.quad(rho_lin, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma, bin_edges[i-]))[0]
-        r0 = bin_edges[i]
-        A = rho0/(1+(r0/rc)**(2*gmma))**0.5 # coefficients for linear approximation to density function
-        B = (rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5
-        a = bin_edges[i-1]
-        b = bin_edges[i+1]
-        integral = abs((A+B*r0)*(b-a) + 0.5*B*(a**2-b**2)) + eps
+        integral = integrate.quad(rho, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma))[0]
+#        r0 = bin_edges[i]
+#        A = rho0/(1+(r0/rc)**(2*gmma))**0.5 # coefficients for linear approximation to density function
+#        B = (rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5
+#        a = bin_edges[i-1]
+#        b = bin_edges[i+1]
+#        integral = abs((A+B*r0)*(b-a) + 0.5*B*(a**2-b**2)) 
 
         nexp = integral# * factor
 #        nexp = max(eps, nexp)
@@ -911,7 +911,7 @@ def LLK_rho(theta,*const):
 #        if nobs <= 0 or nexp <= 0:
 #            print(nobs, nexp)
             
-        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - log(np.math.factorial(nobs)))#(nobs*log(nobs) - nobs + 1))#/nobs
+        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - (nobs*log(nobs) - nobs + 1))#/nobs
     
     return -llk
 
@@ -971,11 +971,11 @@ def p1D(r,*args):
     Non-dimensional solution for maximum pressure along radius r in 1D.
     Option to redimensionalise
     '''
-    alpha, k, nu, q, T, C = args
-    R = (4*alpha*T)**0.5
+    alphaT, knuq = args
+    R = (4*alphaT)**0.5
     arg = r/R
-    p_factor = 2*np.pi*k/(q*nu*(alpha*T)**0.5)
-    p = C * p_factor*4*(np.pi)**0.5*((1+2*arg**2)**0.5*np.exp(-arg**2/(1+2*arg**2)) - 2**0.5*arg*np.exp(-0.5) - np.pi**0.5*arg*(1-erf(arg/(1+2*arg**2)**0.5)-(1-erf(1/2**0.5))))
+    p_factor = knuq/(2*np.pi*alphaT**0.5)
+    p = p_factor**-1*4*(np.pi)**0.5*((1+2*arg**2)**0.5*np.exp(-arg**2/(1+2*arg**2)) - 2**0.5*arg*np.exp(-0.5) - np.pi**0.5*arg*(1-erf(arg/(1+2*arg**2)**0.5)-(1-erf(1/2**0.5))))
     return p
 
 def p2D(r, *args):
@@ -984,11 +984,11 @@ def p2D(r, *args):
     Option to redimensionalise
     '''
     
-    alpha, k, nu, q, T, C = args
-    R = (4*alpha*T)**0.5
+    alphaT, knuq = args
+    R = (4*alphaT)**0.5
     arg = r/R
-    p_factor = 4*np.pi*k/(q*nu)
-    p = C * p_factor * (W(1/(1+1/arg**2)) - W(1))
+    p_factor = knuq/(4*np.pi*alphaT**0.5)
+    p = (W(1/(1+1/arg**2)) - W(1)) / p_factor
     return p
 
 def p3D(r, *args):
@@ -996,11 +996,11 @@ def p3D(r, *args):
     Non-dimensional solution for maximum pressure along radius r in 1D.
     Option to redimensionalise
     '''
-    alpha, k, nu, q, T, C = args
-    R = (4*alpha*T)**0.5
+    alphaT, knuq = args
+    R = (4*alphaT)**0.5
     arg = r/R
-    p_factor = 8*np.pi*k*(alpha*T)**0.5/(q*nu)
-    p = C * p_factor * 1/arg*(-erf(r/(1+2*arg**2/3)**0.5) + (erf(1.5**0.5)))
+    p_factor = knuq/(8*np.pi*alphaT**0.5)
+    p = 1/arg*(-erf(r/(1+2*arg**2/3)**0.5) + (erf(1.5**0.5))) / p_factor
     return p
 
 def llk_diff(theta,*const):
@@ -1031,7 +1031,7 @@ def llk_diff(theta,*const):
     return -llk
 
 def robj_diff(theta, *const):
-    alpha, k, nu, q, T, C = theta
+    alphaT, knuq = theta
     r, dens, bin_edges = const
     
 #    var = []
@@ -1048,6 +1048,6 @@ def robj_diff(theta, *const):
 #        var.append(var_i)
 #    var = np.array(var)
 #    
-    obj = -np.sum(((dens-p2D(r, alpha, k, nu, q, T, C))/dens)**2)
+    obj = -np.sum(((dens-p2D(r, alphaT, knuq))/dens)**2)
     
     return -obj
