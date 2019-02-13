@@ -12,6 +12,7 @@ import random
 import matplotlib.pyplot as plt
 from datetime import datetime
 from pyswarm import pso
+from scipy import optimize
 
 np.random.seed(1756)
 random.seed(1756)
@@ -29,7 +30,7 @@ metrics = pd.DataFrame({'lat0':[nwb[0], rr[0]],
                         'long0':[nwb[1], rr[1]],
                         't0':[datetime(2012, 10, 29, hour=8, minute=2, second=21), datetime(2010, 10, 2 , hour=8, minute=13, second=26)],
                         'ru':[10**2.7, 10**3.5],
-                        'rl':[10**1.2, 10**1.8],
+                        'rl':[10**1.9, 10**1.8],
                         'year':['2014','2016']},
     index =  ['newberry.txt','raft_river.txt'])
 r = 6371e3 # earth radius in m
@@ -61,11 +62,11 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
 catalog = catalog.reindex(columns = cols)
 catalog = catalog[catalog.Year == metrics.loc[fname].year]
-catalog = catalog[(catalog.Distance_from_origin < metrics.loc[fname].ru)]
+catalog = catalog[(catalog.Distance_from_origin < metrics.loc[fname].ru) & (catalog.Distance_from_origin > metrics.loc[fname].rl)]
 
 N = len(catalog)
 k = 20
-eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
+#eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 
 # David's models
@@ -80,10 +81,10 @@ r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 ##bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 #T = 2e6
 ##q = 5e-6
-#const = (rmax, rmin, r, bin_edges, n_edges, T)
+#const = (rmax, rmin, r, bin_edges, n_edges)
 #
-#lb = [1e-3, 1e-16, 1e-2, 1e-7]
-#ub = [1e-1, 1e-3, 4e-1  , 4e-4]
+#lb = [1e-3, 1e-16, 1e-2, 1e-7, 1]
+#ub = [1e-1, 1e-3, 4e-1  , 4e-4, 1e9]
 ## alpha, k, nu, q= theta
 #
 ## do particle swarm opti.
@@ -95,7 +96,7 @@ r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 #ax.plot(r, densities, 'o') 
 ##ax.set_ylim(ax.get_ylim())
 #rplot = np.linspace((rmin),(rmax),500)
-#ax.plot(rplot, eq.p3D(rplot, True, T, theta0[0], theta0[1], theta0[3], theta0[2])+1e-3,'-',color='r')
+#ax.plot(rplot, eq.p3D(rplot, True, theta0[4], theta0[0], theta0[1], theta0[3], theta0[2])+1e-3,'-',color='r')
 #for be in bin_edges:
 #    ax.axvline(be,color='k',linestyle=':')
 #ax.set_xscale('log')
@@ -103,23 +104,28 @@ r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 #ax.set_title(fname.split(sep=".")[0])
 #==============================================================================
 #==============================================================================
-# perform particle swarm optimisation (least squares)
+# minimise weighted sum of squares
 #rho0 = np.mean(densities[0:100])
 rmax = (r.max())
 rmin = (r.min())
-#n_edges = 32
-#bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-#bin_edges = 10**bin_edges
+n_edges = 32
+bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
+bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-T = 1e7
-const = (r, densities)
+const = (r, densities, bin_edges)
 
-lb = [1e-3, 1e-12, 1e-2, 1e-7, 1e3]
-ub = [1e-1, 1e-3, 4e-1  , 4e-4, 1e8]
-#alpha, k, nu, q = theta
+lb = [1e-8, 1, 1e-19, 1e-10, 1e-9, 1e-16]
+ub = [1e2, 1e9, 1e2, 1e0, 1e3, 1e20]
+bounds = [(low, high) for low, high in zip(lb,ub)] # L-BFGS-B bounds
+#alpha, T, k, nu, q  = theta
 
 # do particle swarm opti.
-theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 1000)
+theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 200, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)
+#theta_guess = np.array([  8.00000000e-11,   7.68417736e+08,   7.63685917e+01, 4.65534682e-01,   9.04412151e+02]) # 2D initial guess
+#theta_guess = np.array([  20.00000000e-14,   7.68417736e+08,   7.63685917e+01, 4.65534682e-01,   9.04412151e+02]) # 3D initial guess
+#minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"COBYLA"}
+#annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs)
+#theta0 = annealed.x
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,4))
@@ -127,7 +133,7 @@ f, ax = plt.subplots(1, figsize = (7,4))
 ax.plot(r, densities, 'o') 
 #ax.set_ylim(ax.get_ylim())
 rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, eq.p3D(rplot, True, theta0[4], theta0[0], theta0[1], theta0[3], theta0[2]),'-',color='r')
+ax.plot(rplot, eq.p2D(rplot, theta0[0], theta0[1], theta0[2], theta0[3], theta0[4], theta0[5]),'-',color='r')
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0])
