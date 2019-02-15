@@ -787,14 +787,10 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
 #    y = catalogs.y
     r = np.array(catalogs.Distance_from_origin, dtype = float) # get event distance from origin
     
-#    MY PRIMITIVE kNN SEARCH - MUCHHHHHHHHHHHH SLOWER THAN USING KD TREES
-#     #get positions as list of numpy vectors
-#    positions = [np.array(([xi],[yi])) for xi,yi in zip(x,y)]
-#    density = np.array([k / (kNN_measure(positions, event, k, goebel_dens = True)) for event in positions], dtype = float) # get the kNN density for each event (2 * n * kNN_measure(positions, event, k))
-    
+#
 #    positions = list(zip(x.ravel(), y.ravel()))
 #    point_tree = spatial.KDTree(positions)
-#    density0 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
+#    density1 = np.array([k / (np.pi*(point_tree.query(event, k = k)[0][-1]))**2 for event in positions], dtype = float)
     
     n = len(r) # total number of events
 #    positions = list(zip(r,np.zeros(n)))
@@ -804,7 +800,7 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
 #    kNN_dist = np.array([r[max(indi)] - r[min(indi)] for indi in ind])
 #    density0 = k/(np.pi*kNN_dist**2) # density prior to rolling average
 ##    density = np.zeros(n)
-
+#
     density0 = np.zeros(n)
     positions = np.array([[i] for i in r])
     dist_tree = spatial.KDTree(positions)
@@ -878,7 +874,7 @@ def rho_lin(r, rho0, rc, gmma, r0):
     dens = rho0/(1+(r0/rc)**(2*gmma))**0.5 -(rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5 * (r-r0)
     return dens
     
-def LLK_rho(theta,*const):
+def LLK_rho(theta,rmax, rmin, r, bin_edges, n_edges, rho0):
     '''
     Log likelihood function for radial event density.
     Inputs:
@@ -888,32 +884,38 @@ def LLK_rho(theta,*const):
     llk -> log likelihood, function of parameters
     '''
     rc, gmma = theta
-    rmax, rmin, r, bin_edges, n_edges, rho0 = const
+#    rmax, rmin, r, bin_edges, n_edges, rho0 = const
     
+    if (rc > 900) or (rc < 0) or (gmma < 1) or (gmma > 6):
+        return -np.inf
 
 #    r0 = bin_edges[1]-bin_edges[0]
     llk = 0
     for i in range(1, n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i-1]], r[r<=bin_edges[i+1]]))
+#        if nobs <= 0:
+#            print('adad')
 #        nobs = max(eps,nobs)
 #        factor = 2 * np.pi # np.pi * (bin_edges[i+1] - bin_edges[i])**2
-        integral = integrate.quad(rho, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma))[0]
-#        r0 = bin_edges[i]
+#        integral = abs(integrate.quad(rho, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma))[0])
+        r0 = bin_edges[i]
 #        A = rho0/(1+(r0/rc)**(2*gmma))**0.5 # coefficients for linear approximation to density function
-#        B = (rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5
-#        a = bin_edges[i-1]
-#        b = bin_edges[i+1]
-#        integral = abs((A+B*r0)*(b-a) + 0.5*B*(a**2-b**2)) 
+        B = (rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma))**1.5)
+        a = bin_edges[i-1]
+        b = bin_edges[i+1]
+        A = np.exp(log(rho0) - 0.5*log(rc**(2*gmma)+r0**(2*gmma)) + gmma*log(rc))
+#        B = np.exp(log(rho0*gmma*r0**(2*gmma-1)) -log(rc**(2*gmma)*(1+(r0/rc)**(2*gmma))**1.5))
+        integral = abs((A+B*r0)*(b-a) + 0.5*B*(a**2-b**2))
+#        if integral <= 0:
+#            return np.inf
 
         nexp = integral# * factor
-#        nexp = max(eps, nexp)
-        #llk += nobs * log(nexp) - nexp - (nobs*log(nobs) - nobs + 1)
-#        if nobs <= 0 or nexp <= 0:
-#            print(nobs, nexp)
+        if nexp <= 0:
+            nexp = np.finfo(float).eps
             
-        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - (nobs*log(nobs) - nobs + 1))#/nobs
+        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - (nobs*log(nobs) - nobs + 1))
     
-    return -llk
+    return llk
 
 def gnom_x(lat, long, lat0, long0, deg = True):
     '''
@@ -941,30 +943,37 @@ def gnom_y(lat, long, lat0, long0, deg = True):
     
     return y
 
-def robj(prms, *args):
+def robj(prms, r, dens, bin_edges, q, MCMC):
     '''
     Objective function to be minimised for model fit. Weighted least squares function.
     '''
     rc, gmma, rho0 = prms
-    r, dens, bin_edges = args
     
-#    var = []
-#    n_app = 0
-#    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
-#        m = len(np.intersect1d(r[r>=be_a], r[r<be_b])) # number of events in current bin interval
-#        dens_i = dens[i:i+m]
-#        var_i = np.std(np.log10(dens_i))**2 if m>1 else 1
-#        for k in range(m):
-#            var.append(var_i)
-#            n_app += 1
-#    var.append(var_i)
-#    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
-#        var.append(var_i)
-#    var = np.array(var)
-    
+    var = []
+    n_app = 0
+    for a, b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges)-1)):
+        m = q#len(np.intersect1d(r[r>=a], r[r<b])) # number of events in current bin interval
+        dens_i = dens[i*m:i*m+m]
+        var_i = np.std(np.log10(dens_i))**2 if np.std(np.log10(dens_i))**2 > 0 else 1e-8
+        for k in range(m):
+            var.append(var_i)
+            n_app += 1
+    var.append(var_i)
+    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
+        var.append(var_i)
+    var = np.array(var)
+#
+    lb = [1, 1, 1e-4]
+    ub = [1000, 6, 1]
+        
+    if (rc < lb[0] or rc > ub[0]) or (gmma < lb[1] or gmma > ub[1]) or (rho0 < lb[2] or rho0 > ub[2]):
+        return -np.inf
     obj = -np.sum(((dens-rho(r, rho0, rc, gmma))/dens)**2)
     
-    return -obj
+    if MCMC:
+        return obj
+    else:
+        return -obj
     
 def p1D(r,*args):
     '''
@@ -972,9 +981,9 @@ def p1D(r,*args):
     Option to redimensionalise
     '''
     alphaT, knuq = args
-    R = (4*alphaT)**0.5
+    R = 1#(4*alphaT)**0.5
     arg = r/R
-    p_factor = knuq/(2*np.pi*alphaT**0.5)
+    p_factor = 1#knuq/(2*np.pi*alphaT**0.5)
     p = p_factor**-1*4*(np.pi)**0.5*((1+2*arg**2)**0.5*np.exp(-arg**2/(1+2*arg**2)) - 2**0.5*arg*np.exp(-0.5) - np.pi**0.5*arg*(1-erf(arg/(1+2*arg**2)**0.5)-(1-erf(1/2**0.5))))
     return p
 
@@ -997,9 +1006,9 @@ def p3D(r, *args):
     Option to redimensionalise
     '''
     alphaT, knuq = args
-    R = (4*alphaT)**0.5
+    R = 1#(4*alphaT)**0.5
     arg = r/R
-    p_factor = knuq/(8*np.pi*alphaT**0.5)
+    p_factor = 1#knuq/(8*np.pi*alphaT**0.5)
     p = 1/arg*(-erf(r/(1+2*arg**2/3)**0.5) + (erf(1.5**0.5))) / p_factor
     return p
 
