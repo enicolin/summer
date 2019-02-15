@@ -61,7 +61,7 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
 catalog = catalog.reindex(columns = cols)
 catalog = catalog[catalog.Year == metrics.loc[fname].year]
-#catalog = catalog[(catalog.Distance_from_origin > metrics.loc[fname].rl) & (catalog.Distance_from_origin < metrics.loc[fname].ru)]
+catalog = catalog[(catalog.Distance_from_origin > metrics.loc[fname].rl) & (catalog.Distance_from_origin < metrics.loc[fname].ru)]
 N = len(catalog)
 k = 20 #int(N**0.5)
 
