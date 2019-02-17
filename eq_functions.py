@@ -893,8 +893,8 @@ def LLK_rho(theta,rmax, rmin, r, bin_edges, n_edges, rho0):
     llk = 0
     for i in range(1, n_edges-1):
         nobs = len(np.intersect1d(r[r>=bin_edges[i-1]], r[r<=bin_edges[i+1]]))
-#        if nobs <= 0:
-#            print('adad')
+        if nobs <= 0:
+            nobs = 1e-8
 #        nobs = max(eps,nobs)
 #        factor = 2 * np.pi # np.pi * (bin_edges[i+1] - bin_edges[i])**2
 #        integral = abs(integrate.quad(rho, bin_edges[i-1], bin_edges[i+1], args = (rho0, rc, gmma))[0])
@@ -911,9 +911,9 @@ def LLK_rho(theta,rmax, rmin, r, bin_edges, n_edges, rho0):
 
         nexp = integral# * factor
         if nexp <= 0:
-            nexp = np.finfo(float).eps
+            nexp = 1e-8
             
-        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - (nobs*log(nobs) - nobs + 1))
+        llk += (nobs * log((nexp)) - (nexp) - (nobs*log(nobs) - nobs + 1))
     
     return llk
 
@@ -949,26 +949,28 @@ def robj(prms, r, dens, bin_edges, q, MCMC):
     '''
     rc, gmma, rho0 = prms
     
-    var = []
-    n_app = 0
-    for a, b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges)-1)):
-        m = q#len(np.intersect1d(r[r>=a], r[r<b])) # number of events in current bin interval
-        dens_i = dens[i*m:i*m+m]
-        var_i = np.std(np.log10(dens_i))**2 if np.std(np.log10(dens_i))**2 > 0 else 1e-8
-        for k in range(m):
-            var.append(var_i)
-            n_app += 1
-    var.append(var_i)
-    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
-        var.append(var_i)
-    var = np.array(var)
-#
+#    var = []
+#    n_app = 0
+#    for a, b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges)-1)):
+#        m = q#len(np.intersect1d(r[r>=a], r[r<b])) # number of events in current bin interval
+#        dens_i = dens[i*m:i*m+m]
+#        var_i = np.std(np.log10(dens_i))**2 if np.std(np.log10(dens_i))**2 > 0 else 1e-8
+#        for k in range(m):
+#            var.append(var_i)
+#            n_app += 1
+#    var.append(var_i)
+#    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
+#        var.append(var_i)
+#    var = np.array(var)
+##
     lb = [1, 1, 1e-4]
     ub = [1000, 6, 1]
         
     if (rc < lb[0] or rc > ub[0]) or (gmma < lb[1] or gmma > ub[1]) or (rho0 < lb[2] or rho0 > ub[2]):
         return -np.inf
-    obj = -np.sum(((dens-rho(r, rho0, rc, gmma))/dens)**2)
+    
+    exp = rho(r, rho0, rc, gmma)
+    obj = -np.sum(((dens-exp)/exp)**2)
     
     if MCMC:
         return obj
@@ -993,11 +995,11 @@ def p2D(r, *args):
     Option to redimensionalise
     '''
     
-    alphaT, knuq = args
-    R = (4*alphaT)**0.5
+    alpha, T, k, nu, q = args
+    R = (4*alpha*T)**0.5
     arg = r/R
-    p_factor = knuq/(4*np.pi*alphaT**0.5)
-    p = (W(1/(1+1/arg**2)) - W(1)) / p_factor
+    p_factor = (4*np.pi*k*alpha*T)/(nu*q)
+    p = (W(1/(1+1/arg**2)) - W(1)) * p_factor
     return p
 
 def p3D(r, *args):
@@ -1040,7 +1042,7 @@ def llk_diff(theta,*const):
     return -llk
 
 def robj_diff(theta, *const):
-    alphaT, knuq = theta
+    alpha, T, k, nu, q = theta
     r, dens, bin_edges = const
     
 #    var = []
@@ -1056,7 +1058,8 @@ def robj_diff(theta, *const):
 #    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
 #        var.append(var_i)
 #    var = np.array(var)
-#    
-    obj = -np.sum(((dens-p2D(r, alphaT, knuq))/dens)**2)
+    
+    exp = p2D(r, alpha, T, k, nu, q)
+    obj = -np.sum(((dens-exp))**2/exp)
     
     return -obj
