@@ -997,9 +997,9 @@ def p2D(r, *args):
     
     alpha, T, k, nu, q = args
     R = (4*alpha*T)**0.5
-    arg = r/R
+    arg_r = r/R
     p_factor = (4*np.pi*k*alpha*T)/(nu*q)
-    p = (W(1/(1+1/arg**2)) - W(1)) * p_factor
+    p = (W(1/(1+1/arg_r**2)) - W(1)) * p_factor
     return p
 
 def p3D(r, *args):
@@ -1007,43 +1007,40 @@ def p3D(r, *args):
     Non-dimensional solution for maximum pressure along radius r in 1D.
     Option to redimensionalise
     '''
-    alphaT, knuq = args
-    R = 1#(4*alphaT)**0.5
+    alpha, T, k, nu, q = args
+    R = (4*alpha*T)**0.5
     arg = r/R
-    p_factor = 1#knuq/(8*np.pi*alphaT**0.5)
-    p = 1/arg*(-erf(r/(1+2*arg**2/3)**0.5) + (erf(1.5**0.5))) / p_factor
+    p_factor = (8*np.pi*k*(alpha*T)**0.5)/(nu*q)
+    p = (erf((3/2)**0.5) - erf(arg/(1+2/3*arg**2)**0.5))/arg * p_factor
     return p
 
-def llk_diff(theta,*const):
+def p2D_transient(r, t_now, *args):
     '''
-    Log likelihood function for radial event density, diffusion model.
-    Inputs:
-    theta -> 1d array-like of parameters in order rc, gmma
-    *const -> (required) arguments specifying rho0, rmax, r vector
-    Outupts:
-    llk -> log likelihood, function of parameters
+    Non-dimensional solution for maximum pressure along radius r in 1D.
+    Option to redimensionalise
     '''
-    alpha, k, nu, q, T = theta
-    rmax, rmin, r, bin_edges, n_edges = const
     
-#    args = (True, T, alpha, k, q, nu)
-    llk = 0
-    for a, b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
-        nobs = len(np.intersect1d(r[r>=a], r[r<=b]))
-#        integral = integrate.quad(p3D, a, b, args = args)[0]
-        r0 = bin_edges[i+1]
-        A = p3D(r0, True, T, alpha, k, q, nu)
-        B = -1/r0**2*(erf(1.5**0.5) - erf(r0/(1+2/3*r0**2)**0.5)) + 1/r0*(-2/np.pi**0.5 * ((1+2/3*r0**2)**0.5-2/3*r0**2*(1+2/3*r0**2)**-0.5)/(1+2/3*r0**2)*np.exp(-r0**2/(1+2/3*r0**2)))
-        integral = (A-B*r0)*(b-a) + 0.5*B*(b**2-a**2)        
-        nexp = integral
-            
-        llk += (nobs * log(np.ceil(nexp)) - np.ceil(nexp) - log(np.math.factorial(nobs)))#(nobs*log(nobs) - nobs + 1))#/nobs
+    alpha, T, k, nu, q = args
+    R = (4*alpha*T)**0.5
+    arg_r = r/R
+    arg_t = t_now/T
+    p_factor = (4*np.pi*k*alpha*T)/(nu*q)
     
-    return -llk
+    if arg_t < 1:
+        return -np.inf
+    
+    rbf = (arg_t*(arg_t-1)*log(arg_t/(arg_t-1)))**0.5
+    r_lwr = arg_r[arg_r < rbf]
+    r_upr = arg_r[arg_r >= rbf]
+    
+    p_upr = (W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1))) * p_factor # transient pressure
+    p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * p_factor # pmax
+    p = np.concatenate((p_lwr,p_upr))
+    return p
 
 def robj_diff(theta, *const):
     alpha, T, k, nu, q = theta
-    r, dens, bin_edges = const
+    r, dens, bin_edges, t_now = const
     
 #    var = []
 #    n_app = 0
@@ -1060,6 +1057,6 @@ def robj_diff(theta, *const):
 #    var = np.array(var)
     
     exp = p2D(r, alpha, T, k, nu, q)
-    obj = -np.sum(((dens-exp))**2/exp)
+    obj = -np.sum(((dens-exp)/dens)**2)
     
     return -obj

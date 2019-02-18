@@ -31,8 +31,8 @@ nwb = [43.726077, -121.309651] #  43.726066, -121.310861 ; 43.726208, -121.30986
 metrics = pd.DataFrame({'lat0':[nwb[0], rr[0]],
                         'long0':[nwb[1], rr[1]],
                         't0':[datetime(2012, 10, 29, hour=8, minute=2, second=21), datetime(2010, 10, 2 , hour=8, minute=13, second=26)],
-                        'ru':[10**2.5, 10**3.2],
-                        'rl':[10**1.5, 10**1.8],
+                        'ru':[10**2.63, 10**3.2],
+                        'rl':[10**1.7, 10**1.8],
                         'year':['2014','2016']},
     index =  ['newberry.txt','raft_river.txt'])
 r = 6371e3 # earth radius in m
@@ -70,6 +70,7 @@ N = len(catalog)
 k = 22
 eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
+catalog.Time = catalog.Time - catalog.Time.min()
 
 # David's models
 #==============================================================================
@@ -81,7 +82,8 @@ n_edges = 32
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-const = (r, densities, bin_edges)
+t_now = catalog.Time.max() 
+const = (r, densities, bin_edges, t_now)
 
 #lb = [1e-7, 1e-15, 1e-8, 1e-4, 1e6]
 #ub = [1e-5, 1e-7, 1e-5, 1e-3, 1e7]
@@ -91,25 +93,23 @@ ub = [1e-5, 11e9, 1e-7, 1.3e-6, 1000]
 # alphaT, knuq
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 
-
 # do particle swarm opti.
 theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 1000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)
-theta_guess = theta0
-minimizer_kwargs = {"args":const, "bounds":bounds, "method":"L-BFGS-B"}
-annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
-theta0 = annealed.x
+#theta_guess = theta0
+#minimizer_kwargs = {"args":const, "bounds":bounds, "method":"L-BFGS-B"}
+#annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
+#theta0 = annealed.x
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,4))
 
-#ax.plot(r, densities2, 'ro') 
 ax.plot(r, densities, 'o') 
 #ax.set_ylim(ax.get_ylim())
 rplot = np.linspace((rmin),(rmax),500)
 alpha, T, k, nu, q = theta0[0], theta0[1], theta0[2], theta0[3], theta0[4]
 ax.plot(rplot, eq.p2D(rplot, alpha, T, k, nu, q),'-',color='r')
-ax.set_xscale('log')
-ax.set_yscale('log')
+#ax.set_xscale('log')
+#ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0])
 #==============================================================================
 
