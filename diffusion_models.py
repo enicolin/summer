@@ -72,30 +72,33 @@ eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, savepl
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
 
 # estimate densities prior to filtering by distance, so that they are not affected by absent events
-mask_lwr = r > metrics.loc[fname].rl
-mask_upr =  r < metrics.loc[fname].ru
-mask = mask_upr * mask_lwr 
-r = r[mask]
-densities = densities[mask]
-catalog.Time = catalog.Time - catalog.Time.min()
+mask_filter_farevents =  r < metrics.loc[fname].ru # mask to get rid of very far field event
+r = r[mask_filter_farevents]
+densities = densities[mask_filter_farevents]
+
+#mask_fitregion = r > metrics.loc[fname].rl
+catalog.Time = catalog.Time - catalog.Time.min() # adjust so that first event is at time 0
 
 # David's models
 #==============================================================================
 # minimise weighted sum of squares
-#rho0 = np.mean(densities[0:100])
+#rho0 = np.mean(densities[0:10])
 rmax = (r.max())
 rmin = (r.min())
 n_edges = 32
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-t_now = catalog.Time.max() 
-const = (r, densities, bin_edges, False)
+t_now = catalog.Time.max()
+#rc = metrics.loc[fname].rl
+#rc = 58
+#const = (r, densities, bin_edges, False, rc)
 
 
-lb = [5.9e-3, 2.074e6, 1e-15, 0.8e-6, 10, t_now-10]
-ub = [6.1e-3, 2.2e6, 1e-7, 1.3e-6, 1000, t_now+10]
-# alpha, T, k, nu, q, t_now
+# bounds for the NEWBERRY case
+lb = [5.9e-3, 2.074e6, 1e-15, 0.8e-6, 10, t_now-10, 30]
+ub = [6.1e-3, 2.5e6, 1e-7, 1.3e-6, 1000, t_now+10, 60]
+# alpha, T, k, nu, q, t_now, rc
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 const = (r, densities, bin_edges, False, lb, ub)
 
@@ -108,12 +111,12 @@ theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize =
 
 # plots
 f, ax = plt.subplots(1, figsize = (7,4))
+alpha, T, k, nu, q, t_now, rc = theta0
 
 ax.plot(r, densities, 'o') 
 #ax.set_ylim(ax.get_ylim())
 rplot = np.linspace((rmin),(rmax),500)
-alpha, T, k, nu, q, t_now = theta0
-ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q),'-',color='r')
+ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-',color='r')
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0])
@@ -163,7 +166,7 @@ ax.set_title(fname.split(sep=".")[0])
 
 
 #==============================================================================
-# perform particle swarm optimisation on Goebel/Brodsky model (least squares obj)
+## perform particle swarm optimisation on Goebel/Brodsky model (least squares obj)
 #rmax = r.max()
 #rmin = r.min()
 #n_edges = 10
@@ -184,7 +187,8 @@ ax.set_title(fname.split(sep=".")[0])
 #f, ax = plt.subplots(1, figsize = (7,4))
 #ax.plot(r, densities, 'o', alpha = 0.3)
 #rplot = np.linspace((rmin),(rmax),500)
-#ax.plot(rplot, (eq.rho(rplot, theta0[2], theta0[0], theta0[1])),'-')
+#rc, gmma, rho0 = theta0
+#ax.plot(rplot, (eq.rho(rplot, rho0, rc, gmma)),'-')
 #ax.set_title(fname.split(sep=".")[0]+" "+metrics.loc[fname].year)
 ##for be in bin_edges:
 ##    ax.axvline(be,color='k',linestyle=':')

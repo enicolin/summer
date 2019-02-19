@@ -1021,24 +1021,43 @@ def p2D_transient(r, t_now, *args):
     Option to redimensionalise
     '''
     
-    alpha, T, k, nu, q = args
-    R = (4*alpha*T)**0.5
-    arg_r = r/R
+    alpha, T, k, nu, q, rc = args
+    mask = r >= rc # mask for the fit region
+    r_fit = r[mask]
+    r_plateau = r[~mask]
+    assert(len(r_fit) + len(r_plateau) == len(r))
+    
+#    # divide domain into events prior to and after sudden seismicity fall-off
+#    r_plateau = r[r <= rc]
+#    r_large = r[r > rc]
+    
+    R = (4*alpha*T)**0.5 # characteristic length
+#    arg_r = (r_large-rc)/R # shift across by rc
+#    arg_r = r/R
+    arg_r = r_fit/R # fit to region of 'large r'
     arg_t = t_now/T
     p_factor = (4*np.pi*k)/(nu*q)
-    
-    
-#    if arg_t < 1:
-#        return np.array([0]*len(r))
-    
-#    rbf = (arg_t*(arg_t-1)*log(arg_t/(arg_t-1)))**0.5
+
     rbf = (arg_t-1)**0.5
+        
     r_lwr = arg_r[arg_r < rbf]
     r_upr = arg_r[arg_r >= rbf]
     
     p_upr = (W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1))) * p_factor # transient pressure
     p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * p_factor  # pmax
+#    p_rlarge = np.concatenate((p_lwr,p_upr))
     p = np.concatenate((p_lwr,p_upr))
+    
+    p_plateau = np.array([p[0] for i in r_plateau])
+#    mask = r < rc
+#    p[mask] = p[mask].min()
+    p = np.concatenate((p_plateau, p))
+    
+#    rlen = len(r_plateau)
+#    p_plateau = np.array([p_rlarge[0] for i in range(rlen)])
+    
+#    p = np.concatenate((p_plateau, p_rlarge))
+    assert(len(p) == len(r))
     return p
 
 def con_diff(theta, *const):
@@ -1057,9 +1076,13 @@ def con_diff(theta, *const):
     return [C, -C]
     
 def robj_diff(theta, *const):
-    alpha, T, k, nu, q, t_now = theta
+    alpha, T, k, nu, q, t_now, rc = theta
     r, dens, bin_edges, MCMC, lb, ub = const
     
+#    arg_t = t_now/T
+#    rbf = (arg_t-1)**0.5
+#    R = (4*alpha*T)**0.5
+#    rbf_D = rbf * R
 #    var = []
 #    n_app = 0
 #    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
@@ -1077,11 +1100,13 @@ def robj_diff(theta, *const):
 #    lb = [1e-7, 7.8e6, 1e-15, 0.8e-6, 10, 11e9+1]
 #    ub = [1e-5, 11e9, 1e-7, 1.3e-6, 1000, 9e10]
     
+    # or (rbf_D < rc)
     if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \
-    (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4] or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]) or t_now < T:
+    (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4]\
+    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]) or t_now < T: 
         return -np.inf
     
-    exp = p2D_transient(r, t_now, alpha, T, k, nu, q)
+    exp = p2D_transient(r, t_now, alpha, T, k, nu, q, rc)
     obj = -np.sum(((dens-exp)/dens)**2)
     
     if not MCMC:
