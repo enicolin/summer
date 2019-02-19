@@ -32,7 +32,7 @@ metrics = pd.DataFrame({'lat0':[nwb[0], rr[0]],
                         'long0':[nwb[1], rr[1]],
                         't0':[datetime(2012, 10, 29, hour=8, minute=2, second=21), datetime(2010, 10, 2 , hour=8, minute=13, second=26)],
                         'ru':[10**2.63, 10**3.2],
-                        'rl':[10**1.7, 10**1.8],
+                        'rl':[3*1e1, 150],
                         'year':['2014','2016']},
     index =  ['newberry.txt','raft_river.txt'])
 r = 6371e3 # earth radius in m
@@ -64,12 +64,19 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
 catalog = catalog.reindex(columns = cols)
 catalog = catalog[catalog.Year == metrics.loc[fname].year]
-catalog = catalog[(catalog.Distance_from_origin < metrics.loc[fname].ru) & (catalog.Distance_from_origin > metrics.loc[fname].rl)]
+#catalog = catalog[(catalog.Distance_from_origin < metrics.loc[fname].ru) & (catalog.Distance_from_origin > metrics.loc[fname].rl)]
 
 N = len(catalog)
 k = 22
 eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
+
+# estimate densities prior to filtering by distance, so that they are not affected by absent events
+mask_lwr = r > metrics.loc[fname].rl
+mask_upr =  r < metrics.loc[fname].ru
+mask = mask_upr * mask_lwr 
+r = r[mask]
+densities = densities[mask]
 catalog.Time = catalog.Time - catalog.Time.min()
 
 # David's models
@@ -82,21 +89,20 @@ n_edges = 32
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-t_now = catalog.Time.max() 
-const = (r, densities, bin_edges, t_now)
+#t_now = catalog.Time.max() 
+const = (r, densities, bin_edges, False)
 
-#lb = [1e-7, 1e-15, 1e-8, 1e-4, 1e6]
-#ub = [1e-5, 1e-7, 1e-5, 1e-3, 1e7]
-#alpha, k, nu, q, T  = theta
-lb = [1e-7, 7.8e6, 1e-15, 0.8e-6, 10]
-ub = [1e-5, 11e9, 1e-7, 1.3e-6, 1000]
-# alphaT, knuq
+
+lb = [5e-3, 7.8e6, 1e-15, 0.8e-6, 10, 11e6+1]
+ub = [7e-3, 11e6, 1e-7, 1.3e-6, 1000, 9e10]
+# alpha, T, k, nu, q, t_now
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
+const = (r, densities, bin_edges, False, lb, ub)
 
 # do particle swarm opti.
-theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 1000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)
+theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 1000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
 #theta_guess = theta0
-#minimizer_kwargs = {"args":const, "bounds":bounds, "method":"L-BFGS-B"}
+#minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"L-BFGS-B"}
 #annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
 #theta0 = annealed.x
 
@@ -106,11 +112,48 @@ f, ax = plt.subplots(1, figsize = (7,4))
 ax.plot(r, densities, 'o') 
 #ax.set_ylim(ax.get_ylim())
 rplot = np.linspace((rmin),(rmax),500)
-alpha, T, k, nu, q = theta0[0], theta0[1], theta0[2], theta0[3], theta0[4]
-ax.plot(rplot, eq.p2D(rplot, alpha, T, k, nu, q),'-',color='r')
-#ax.set_xscale('log')
-#ax.set_yscale('log')
+alpha, T, k, nu, q, t_now = theta0
+ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q),'-',color='r')
+ax.set_xscale('log')
+ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0])
+
+### MCMC sampling
+##
+##ndim = len(theta0)
+##nwalkers = 32
+##
+##sampler = emcee.EnsembleSampler(nwalkers, ndim, eq.robj_diff, args = [r, densities, bin_edges, t_now, True]) # set up sampler
+##p0 = np.array([theta0 + 1e-3*np.random.randn(ndim) for i in range(nwalkers)]) # initial walkers
+##pos, prob, state = sampler.run_mcmc(p0, 120) # burn-in run, get new walkers
+##sampler.reset()
+##
+### do proper runs
+##sampler.run_mcmc(pos, 500)
+##
+### plot densities
+##f3, prm_ax = plt.subplots(ndim, figsize=(5,12))
+##parm_title = [r'$\alpha$',r'$T$',r'$k$', r'$\nu$', r'$q$']
+##for i in range(ndim):
+##        prm_ax[i].hist(sampler.flatchain[:,i], 100, color="k", histtype="stepfilled")
+###prm_ax[2].set_xticklabels(['{:.1e}'.format(t) for t in prm_ax[2].get_xticks()])
+##plt.tight_layout()
+##plt.savefig('prm_dstr.png',dpi = 400)
+##
+##plt.show()
+##
+##samples = sampler.flatchain
+##
+##f2, ax2 = plt.subplots(1, figsize = (7,4))
+##ax2.plot(r, densities, 'o') 
+###ax.set_ylim(ax.get_ylim())
+##for i in range(len(samples)):
+##    ax2.plot(rplot, eq.p2D(rplot, samples[i][0], samples[i][1], samples[i][2], samples[i][3], samples[i][4]),'-',color='b',alpha=0.01,lw=.2)
+##ax2.set_xscale('log')
+##ax2.set_yscale('log')
+##ax2.set_title(fname.split(sep=".")[0])
+##plt.savefig('newberry_mcmc_diffusion.png',dpi=400)
+
 #==============================================================================
 
 
@@ -120,7 +163,7 @@ ax.set_title(fname.split(sep=".")[0])
 
 
 #==============================================================================
-## perform particle swarm optimisation on Goebel/Brodsky model (least squares obj)
+# perform particle swarm optimisation on Goebel/Brodsky model (least squares obj)
 #rmax = r.max()
 #rmin = r.min()
 #n_edges = 10
@@ -131,7 +174,7 @@ ax.set_title(fname.split(sep=".")[0])
 #const = (r, densities, bin_edges, q, False)
 #
 #lb = [1, 1, 1e-4]
-#ub = [1000, 6, 1]
+#ub = [1000, 6, 1e-2]
 #
 ## do particle swarm opti.
 #theta0, obj = pso(eq.robj, lb, ub, args = const, maxiter = 1000, swarmsize = 500)
@@ -147,7 +190,7 @@ ax.set_title(fname.split(sep=".")[0])
 ##    ax.axvline(be,color='k',linestyle=':')
 #ax.set_xscale('log')
 #ax.set_yscale('log')
-#
+
 ## MCMC sampling
 #
 #ndim = 3
@@ -175,7 +218,7 @@ ax.set_title(fname.split(sep=".")[0])
 #    prm_ax[i].set_title("{}".format(parm_title[i]))
 ##prm_ax[2].set_xticklabels(['{:.1e}'.format(t) for t in prm_ax[2].get_xticks()])
 #plt.tight_layout()
-#plt.savefig('prm_dstr.png',dpi = 400)
+##plt.savefig('prm_dstr.png',dpi = 400)
 #
 #plt.show()
 #
@@ -189,7 +232,7 @@ ax.set_title(fname.split(sep=".")[0])
 #ax2.set_xscale('log')
 #ax2.set_yscale('log')
 #ax2.set_title(fname.split(sep=".")[0])
-#plt.savefig('newberry_mcmc.png',dpi=400)
+##plt.savefig('newberry_mcmc.png',dpi=400)
 
 #==============================================================================
 ## perform particle swarm optimisation (MLE)

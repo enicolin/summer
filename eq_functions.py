@@ -970,7 +970,7 @@ def robj(prms, r, dens, bin_edges, q, MCMC):
         return -np.inf
     
     exp = rho(r, rho0, rc, gmma)
-    obj = -np.sum(((dens-exp)/exp)**2)
+    obj = -np.sum(((dens-exp)/dens)**2)
     
     if MCMC:
         return obj
@@ -982,11 +982,11 @@ def p1D(r,*args):
     Non-dimensional solution for maximum pressure along radius r in 1D.
     Option to redimensionalise
     '''
-    alphaT, knuq = args
-    R = 1#(4*alphaT)**0.5
+    alpha, T, k, nu, q = args
+    R = (4*alpha*T)**0.5
     arg = r/R
-    p_factor = 1#knuq/(2*np.pi*alphaT**0.5)
-    p = p_factor**-1*4*(np.pi)**0.5*((1+2*arg**2)**0.5*np.exp(-arg**2/(1+2*arg**2)) - 2**0.5*arg*np.exp(-0.5) - np.pi**0.5*arg*(1-erf(arg/(1+2*arg**2)**0.5)-(1-erf(1/2**0.5))))
+    p_factor = (2*np.pi*k)/(q*nu*(alpha*T)**0.5)
+    p = p_factor*4*(np.pi)**0.5*((1+2*arg**2)**0.5*np.exp(-arg**2/(1+2*arg**2)) - 2**0.5*arg*np.exp(-0.5) - np.pi**0.5*arg*(1-erf(arg/(1+2*arg**2)**0.5)-(1-erf(1/2**0.5))))
     return p
 
 def p2D(r, *args):
@@ -998,7 +998,8 @@ def p2D(r, *args):
     alpha, T, k, nu, q = args
     R = (4*alpha*T)**0.5
     arg_r = r/R
-    p_factor = (4*np.pi*k*alpha*T)/(nu*q)
+    p_factor = (4*np.pi*k)/(nu*q)
+#    p_factor = (nu*q*R)/(4*np.pi*k) # ([m^2/s * kg/m^2/s]/[m^2])*[m]
     p = (W(1/(1+1/arg_r**2)) - W(1)) * p_factor
     return p
 
@@ -1024,23 +1025,40 @@ def p2D_transient(r, t_now, *args):
     R = (4*alpha*T)**0.5
     arg_r = r/R
     arg_t = t_now/T
-    p_factor = (4*np.pi*k*alpha*T)/(nu*q)
+    p_factor = (4*np.pi*k)/(nu*q)
     
-    if arg_t < 1:
-        return -np.inf
     
-    rbf = (arg_t*(arg_t-1)*log(arg_t/(arg_t-1)))**0.5
+#    if arg_t < 1:
+#        return np.array([0]*len(r))
+    
+#    rbf = (arg_t*(arg_t-1)*log(arg_t/(arg_t-1)))**0.5
+    rbf = (arg_t-1)**0.5
     r_lwr = arg_r[arg_r < rbf]
     r_upr = arg_r[arg_r >= rbf]
     
     p_upr = (W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1))) * p_factor # transient pressure
-    p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * p_factor # pmax
+    p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * p_factor  # pmax
     p = np.concatenate((p_lwr,p_upr))
     return p
 
+def con_diff(theta, *const):
+    '''
+    constraint vector for objective to ensure no discontinuity
+    '''
+    
+    alpha, T, k, nu, q, t_now = theta
+    r, dens, bin_edges, MCMC, lb, ub = const
+    
+    arg_t = t_now/T
+    rbf = (arg_t*(arg_t-1)*log(arg_t/(arg_t-1)))**0.5
+    
+    C = (W(rbf**2/arg_t)-W(rbf**2/(arg_t-1))) - (W(1/(1+1/rbf**2)) - W(1))
+    
+    return [C, -C]
+    
 def robj_diff(theta, *const):
-    alpha, T, k, nu, q = theta
-    r, dens, bin_edges, t_now = const
+    alpha, T, k, nu, q, t_now = theta
+    r, dens, bin_edges, MCMC, lb, ub = const
     
 #    var = []
 #    n_app = 0
@@ -1055,8 +1073,18 @@ def robj_diff(theta, *const):
 #    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
 #        var.append(var_i)
 #    var = np.array(var)
+
+#    lb = [1e-7, 7.8e6, 1e-15, 0.8e-6, 10, 11e9+1]
+#    ub = [1e-5, 11e9, 1e-7, 1.3e-6, 1000, 9e10]
     
-    exp = p2D(r, alpha, T, k, nu, q)
+    if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \
+    (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4] or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]) or t_now < T:
+        return -np.inf
+    
+    exp = p2D_transient(r, t_now, alpha, T, k, nu, q)
     obj = -np.sum(((dens-exp)/dens)**2)
     
-    return -obj
+    if not MCMC:
+        return -obj
+    else:
+        return obj
