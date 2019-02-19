@@ -89,12 +89,12 @@ n_edges = 32
 bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-#t_now = catalog.Time.max() 
+t_now = catalog.Time.max() 
 const = (r, densities, bin_edges, False)
 
 
-lb = [5e-3, 7.8e6, 1e-15, 0.8e-6, 10, 11e6+1]
-ub = [7e-3, 11e6, 1e-7, 1.3e-6, 1000, 9e10]
+lb = [5.9e-3, 2.074e6, 1e-15, 0.8e-6, 10, t_now-10]
+ub = [6.1e-3, 2.2e6, 1e-7, 1.3e-6, 1000, t_now+10]
 # alpha, T, k, nu, q, t_now
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 const = (r, densities, bin_edges, False, lb, ub)
