@@ -1022,42 +1022,46 @@ def p2D_transient(r, t_now, *args):
     '''
     
     alpha, T, k, nu, q, rc = args
-    mask = r >= rc # mask for the fit region
-    r_fit = r[mask]
-    r_plateau = r[~mask]
-    assert(len(r_fit) + len(r_plateau) == len(r))
-    
-#    # divide domain into events prior to and after sudden seismicity fall-off
-#    r_plateau = r[r <= rc]
-#    r_large = r[r > rc]
+#    mask = r >= rc # mask for the fit region
+#    r_fit = r[mask]
+#    r_plateau = r[~mask]
+#    assert(len(r_fit) + len(r_plateau) == len(r))
     
     R = (4*alpha*T)**0.5 # characteristic length
-#    arg_r = (r_large-rc)/R # shift across by rc
-#    arg_r = r/R
-    arg_r = r_fit/R # fit to region of 'large r'
     arg_t = t_now/T
-    p_factor = (4*np.pi*k)/(nu*q)
-
-    rbf = (arg_t-1)**0.5
+    
+    if arg_t > 1:
+        P = (4*np.pi*k)/(nu*q)
+        rbf = (arg_t-1)**0.5
+        mask = r >= min(rbf*R,rc) # mask for the fit region
+        r_fit = r[mask]
+        r_plateau = r[~mask]
+        arg_r = r_fit/R # fit to region of 'large r'
+        assert(len(r_fit) + len(r_plateau) == len(r))
+    #    assert(rbf > rc)
         
-    r_lwr = arg_r[arg_r < rbf]
-    r_upr = arg_r[arg_r >= rbf]
-    
-    p_upr = (W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1))) * p_factor # transient pressure
-    p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * p_factor  # pmax
-#    p_rlarge = np.concatenate((p_lwr,p_upr))
-    p = np.concatenate((p_lwr,p_upr))
-    
-    p_plateau = np.array([p[0] for i in r_plateau])
-#    mask = r < rc
-#    p[mask] = p[mask].min()
-    p = np.concatenate((p_plateau, p))
-    
-#    rlen = len(r_plateau)
-#    p_plateau = np.array([p_rlarge[0] for i in range(rlen)])
-    
-#    p = np.concatenate((p_plateau, p_rlarge))
-    assert(len(p) == len(r))
+        r_lwr = arg_r[arg_r < rbf]
+        r_upr = arg_r[arg_r >= rbf]
+        
+        p_upr = (W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1))) * P # transient pressure
+        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * P  # pmax
+        p = np.concatenate((p_lwr,p_upr))
+        
+        p_plateau = np.array([p[0] for i in r_plateau])
+        p = np.concatenate((p_plateau, p))
+        assert(len(p) == len(r))
+    else:
+        P = (4*np.pi*k)/(nu*q)
+        P = 1/P
+        mask = r >= rc # mask for the fit region
+        r_fit = r[mask]
+        r_plateau = r[~mask]
+        arg_r = (r_fit)/R # fit to region of 'large r'
+        
+        p_fit = W(arg_r**2/arg_t) * P # transient pressure
+        p_plat = np.array([p_fit[0] for i in r_plateau])
+        p = np.concatenate((p_plat, p_fit))
+        
     return p
 
 def con_diff(theta, *const):
@@ -1100,10 +1104,10 @@ def robj_diff(theta, *const):
 #    lb = [1e-7, 7.8e6, 1e-15, 0.8e-6, 10, 11e9+1]
 #    ub = [1e-5, 11e9, 1e-7, 1.3e-6, 1000, 9e10]
     
-    # or (rbf_D < rc)
+    # or (rc < lb[6] or rc > lb[6]) or (rbf_D < rc): 
     if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \
     (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4]\
-    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]) or t_now < T: 
+    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]) or t_now < T:
         return -np.inf
     
     exp = p2D_transient(r, t_now, alpha, T, k, nu, q, rc)
