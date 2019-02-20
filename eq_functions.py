@@ -830,7 +830,7 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
         ax.set_xscale('log')#, nonposx = 'clip')
         plt.show()
 
-    return r, density0
+    return r, density0/n
     
 #    
 def hav(lat1,lat2,long1,long2):

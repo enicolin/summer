@@ -67,9 +67,9 @@ catalog0 = catalog0[catalog0.Year == metrics.loc[fname].year]
 catalog0 = catalog0[:251]
 N = len(catalog0)
 
-nsplit = 4
+nsplit = 3
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
-f, ax = plt.subplots(1, figsize = (7,4))
+f, ax = plt.subplots(1, figsize = (6,3))
 for i, n in enumerate(amount):
     catalog = catalog0[:int(n)] # only get first injection round 
     k = 22
@@ -101,13 +101,13 @@ for i, n in enumerate(amount):
     
     # bounds for the NEWBERRY case
     lb = [5.9e-14, 2.246e+6-1, 1e-15, 0.8e-6, 10, t_now-1, 10]
-    ub = [6.1e-1, 2.246e+6+1, 1e-7, 1.3e-6, 1000, t_now+1, 110]
+    ub = [6.1e-1, 2.246e+6+1, 1e-7, 1.3e-6, 1000, t_now+1, 200]
     # alpha, T, k, nu, q, t_now, rc
     bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
     const = (r, densities, bin_edges, False, lb, ub)
     
     # do particle swarm opti.
-    theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 2000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
+    theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 2500, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
     #theta_guess = theta0
     #minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"L-BFGS-B"}
     #annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
@@ -120,10 +120,14 @@ for i, n in enumerate(amount):
     ax.plot(r, densities, 'o', alpha = 0.5) 
     #ax.set_ylim(ax.get_ylim())
     rplot = np.linspace((rmin),(rmax),500)
-    ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-')
+    ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-',label='{0:.1f}% of data'.format(n/N*100))
     ax.set_xscale('log')
     ax.set_yscale('log')
+ax.set_xlabel('distance from well (m)')
+ax.set_ylabel(r'event density $(/m^2)$')
 plt.title(fname.split(sep=".")[0])
+plt.legend()
+plt.savefig('diff_time_normalised.png',dpi=400)
     #==============================================================================
 
 print(datetime.now() - start)
