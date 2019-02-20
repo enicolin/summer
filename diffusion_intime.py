@@ -65,12 +65,17 @@ cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Dis
 catalog0 = catalog0.reindex(columns = cols)
 catalog0 = catalog0[catalog0.Year == metrics.loc[fname].year]
 catalog0 = catalog0[:251]
+catalog0.Time = catalog0.Time - catalog0.Time.min() + 475200 # first event was about 5 days into injection (432000 s = 5 days)
 N = len(catalog0)
 
 nsplit = 3
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
-f, ax = plt.subplots(1, figsize = (6,3))
+r_all = []
+dens_all = []
+t = []
+T = 2.246e6
 for i, n in enumerate(amount):
+    catalog = catalog0.copy()
     catalog = catalog0[:int(n)] # only get first injection round 
     k = 22
 #    eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
@@ -80,9 +85,12 @@ for i, n in enumerate(amount):
     mask_filter_farevents =  r < metrics.loc[fname].ru # mask to get rid of very far field event
     r = r[mask_filter_farevents]
     densities = densities[mask_filter_farevents]
+    densities *= 100
+    r_all.append(r)
+    dens_all.append(densities)
     
     #mask_fitregion = r > metrics.loc[fname].rl
-    catalog.Time = catalog.Time - catalog.Time.min() # adjust so that first event is at time 0
+#    catalog.Time = catalog.Time - catalog.Time.min() # adjust so that first event is at time 0
     
     # David's models
     #==============================================================================
@@ -95,39 +103,42 @@ for i, n in enumerate(amount):
     bin_edges = 10**bin_edges
     #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
     t_now = catalog.Time.max()
+    t.append(t_now)
     #rc = metrics.loc[fname].rl
     #rc = 50
     
     
-    # bounds for the NEWBERRY case
-    lb = [5.9e-14, 2.246e+6-1, 1e-15, 0.8e-6, 10, t_now-1, 10]
-    ub = [6.1e-1, 2.246e+6+1, 1e-7, 1.3e-6, 1000, t_now+1, 200]
-    # alpha, T, k, nu, q, t_now, rc
-    bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
-    const = (r, densities, bin_edges, False, lb, ub)
-    
-    # do particle swarm opti.
-    theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize = 2500, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
-    #theta_guess = theta0
-    #minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"L-BFGS-B"}
-    #annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
-    #theta0 = annealed.x
-    
-    # plots
+# bounds for the NEWBERRY case
+lb = [5.9e-14, 1e-15, 0.8e-6, 10, 50]
+ub = [6.1e-1, 1e-7, 1.3e-6, 1000, 60]
+# alpha, k, nu, q, rc
+#bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
+const = (r_all, dens_all, bin_edges, False, lb, ub, T, t)
+
+# do particle swarm opti.
+theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 3000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
+#theta_guess = theta0
+#minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"L-BFGS-B"}
+#annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
+#theta0 = annealed.x
+
+# plots
 #    f, ax = plt.subplots(1, figsize = (7,4))
-    alpha, T, k, nu, q, t_now, rc = theta0
-    
-    ax.plot(r, densities, 'o', alpha = 0.5) 
-    #ax.set_ylim(ax.get_ylim())
-    rplot = np.linspace((rmin),(rmax),500)
-    ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-',label='{0:.1f}% of data'.format(n/N*100))
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+alpha, k, nu, q, rc = theta0
+
+colors = ['r','b','k','y']
+f, ax = plt.subplots(1, figsize = (7,4))
+rplot = np.linspace((rmin),(rmax),500)
+for i, n in enumerate(amount):
+    ax.plot(r_all[i], dens_all[i], 'o', alpha = 0.5, color = colors[i])
+    ax.plot(rplot, eq.p2D_transient(rplot, t[i], alpha, T, k, nu, q, rc),'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
+#ax.set_xscale('log')
+#ax.set_yscale('log')
 ax.set_xlabel('distance from well (m)')
 ax.set_ylabel(r'event density $(/m^2)$')
 plt.title(fname.split(sep=".")[0])
-plt.legend()
-plt.savefig('diff_time_normalised.png',dpi=400)
-    #==============================================================================
+plt.legend(loc = 'best')
+#plt.savefig('diff_time_normalised.png',dpi=400)
+#==============================================================================
 
 print(datetime.now() - start)

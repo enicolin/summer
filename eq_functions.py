@@ -830,7 +830,7 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
         ax.set_xscale('log')#, nonposx = 'clip')
         plt.show()
 
-    return r, density0/n
+    return r, density0#/n**0.5
     
 #    
 def hav(lat1,lat2,long1,long2):
@@ -1080,38 +1080,19 @@ def con_diff(theta, *const):
     return [C, -C]
     
 def robj_diff(theta, *const):
-    alpha, T, k, nu, q, t_now, rc = theta
-    r, dens, bin_edges, MCMC, lb, ub = const
-    
-#    arg_t = t_now/T
-#    rbf = (arg_t-1)**0.5
-#    R = (4*alpha*T)**0.5
-#    rbf_D = rbf * R
-#    var = []
-#    n_app = 0
-#    for be_a, be_b, i in zip(bin_edges[:-1],bin_edges[1:], range(len(bin_edges))):
-#        m = len(np.intersect1d(r[r>=be_a], r[r<be_b])) # number of events in current bin interval
-#        dens_i = dens[i:i+m]
-#        var_i = np.std(np.log10(dens_i))**2 if m>1 else 1
-#        for k in range(m):
-#            var.append(var_i)
-#            n_app += 1
-#    var.append(var_i)
-#    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
-#        var.append(var_i)
-#    var = np.array(var)
-
-#    lb = [1e-7, 7.8e6, 1e-15, 0.8e-6, 10, 11e9+1]
-#    ub = [1e-5, 11e9, 1e-7, 1.3e-6, 1000, 9e10]
+    alpha, k, nu, q, rc = theta
+    r, dens, bin_edges, MCMC, lb, ub, T, t_now = const
     
     # or (rc < lb[6] or rc > lb[6]) or (rbf_D < rc): 
-    if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \
-    (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4]\
-    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]):
-        return -np.inf
+#    if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \
+#    (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4]\
+#    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]):
+#        return -np.inf
     
-    exp = p2D_transient(r, t_now, alpha, T, k, nu, q, rc)
-    obj = -np.sum(((dens-exp)/dens)**2)
+    obj = 0
+    for ri, densi, ti in zip(r, dens, t_now):
+        exp = p2D_transient(ri, ti, alpha, T, k, nu, q, rc)
+        obj += -np.sum(((densi-exp)/densi)**2)#*T/ti
     
     if not MCMC:
         return -obj
