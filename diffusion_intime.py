@@ -64,12 +64,12 @@ catalog0 = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
 cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year','Date']
 catalog0 = catalog0.reindex(columns = cols)
 catalog0 = catalog0[catalog0.Year == metrics.loc[fname].year]
-catalog0 = catalog0[:50]
+catalog0 = catalog0[:251]
 N = len(catalog0)
 
-nsplit = 1
+nsplit = 4
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
-f, ax = plt.subplots(nsplit, figsize = (7,4))
+f, ax = plt.subplots(1, figsize = (7,4))
 for i, n in enumerate(amount):
     catalog = catalog0[:int(n)] # only get first injection round 
     k = 22
@@ -100,8 +100,8 @@ for i, n in enumerate(amount):
     
     
     # bounds for the NEWBERRY case
-    lb = [5.9e-14, 2.246e+6-1, 1e-15, 0.8e-6, 10, t_now-10, 100]
-    ub = [6.1e-3, 2.246e+6+1, 1e-7, 1.3e-6, 1000, t_now+10, 200]
+    lb = [5.9e-14, 2.246e+6-1, 1e-15, 0.8e-6, 10, t_now-1, 10]
+    ub = [6.1e-1, 2.246e+6+1, 1e-7, 1.3e-6, 1000, t_now+1, 110]
     # alpha, T, k, nu, q, t_now, rc
     bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
     const = (r, densities, bin_edges, False, lb, ub)
@@ -120,7 +120,7 @@ for i, n in enumerate(amount):
     ax.plot(r, densities, 'o', alpha = 0.5) 
     #ax.set_ylim(ax.get_ylim())
     rplot = np.linspace((rmin),(rmax),500)
-    ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-',color='y')
+    ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-')
     ax.set_xscale('log')
     ax.set_yscale('log')
 plt.title(fname.split(sep=".")[0])
