@@ -41,7 +41,6 @@ x0 = eq.gnom_x(lat0,long0,lat0,long0)
 y0 = eq.gnom_y(lat0,long0,lat0,long0)
 
 # store events in list
-# NOTES:
 # latitudes and longitudes are projected to a plane using a gnomonic projection
 # distances between points and the origin (mean lat,lon) are determined by great circle distances between origin and the points
 events_all = [eq.Event(float(event.split()[10]), \
@@ -60,11 +59,12 @@ catalog = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
                                    'y':[event.y for event in events_all],
                                    'Generation':[0] * len(events_all),
                                    'Distance_from_origin': [event.distance_from_origin for event in events_all],
-                                   'Year':[event.split()[0] for event in flines]})
-cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year']
+                                   'Year':[event.split()[0] for event in flines],
+                                   'Date':[datetime(int(event.split()[0]),int(event.split()[2]),int(event.split()[3]),hour=int(event.split()[4]),minute=int(event.split()[5]),second=int(float(event.split()[6]))) for event in flines]})
+cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year','Date']
 catalog = catalog.reindex(columns = cols)
 catalog = catalog[catalog.Year == metrics.loc[fname].year]
-#catalog = catalog[(catalog.Distance_from_origin < metrics.loc[fname].ru) & (catalog.Distance_from_origin > metrics.loc[fname].rl)]
+#catalog = catalog[:251] # only get first injection round 
 
 N = len(catalog)
 k = 22
@@ -91,13 +91,12 @@ bin_edges = 10**bin_edges
 #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
 t_now = catalog.Time.max()
 #rc = metrics.loc[fname].rl
-#rc = 58
-#const = (r, densities, bin_edges, False, rc)
+#rc = 50
 
 
 # bounds for the NEWBERRY case
-lb = [5.9e-3, 2.074e6, 1e-15, 0.8e-6, 10, t_now-10, 30]
-ub = [6.1e-3, 2.5e6, 1e-7, 1.3e-6, 1000, t_now+10, 60]
+lb = [5.9e-14, 2.246e+6-1, 1e-15, 0.8e-6, 10, t_now-10, 10]
+ub = [6.1e-3, 2.246e+6+1, 1e-7, 1.3e-6, 1000, t_now+10, 120]
 # alpha, T, k, nu, q, t_now, rc
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 const = (r, densities, bin_edges, False, lb, ub)
@@ -113,50 +112,13 @@ theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 100, swarmsize =
 f, ax = plt.subplots(1, figsize = (7,4))
 alpha, T, k, nu, q, t_now, rc = theta0
 
-ax.plot(r, densities, 'o') 
+ax.plot(r, densities, 'o', alpha = 0.5) 
 #ax.set_ylim(ax.get_ylim())
 rplot = np.linspace((rmin),(rmax),500)
-ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-',color='r')
+ax.plot(rplot, eq.p2D_transient(rplot, t_now, alpha, T, k, nu, q, rc),'-',color='y')
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_title(fname.split(sep=".")[0])
-
-### MCMC sampling
-##
-##ndim = len(theta0)
-##nwalkers = 32
-##
-##sampler = emcee.EnsembleSampler(nwalkers, ndim, eq.robj_diff, args = [r, densities, bin_edges, t_now, True]) # set up sampler
-##p0 = np.array([theta0 + 1e-3*np.random.randn(ndim) for i in range(nwalkers)]) # initial walkers
-##pos, prob, state = sampler.run_mcmc(p0, 120) # burn-in run, get new walkers
-##sampler.reset()
-##
-### do proper runs
-##sampler.run_mcmc(pos, 500)
-##
-### plot densities
-##f3, prm_ax = plt.subplots(ndim, figsize=(5,12))
-##parm_title = [r'$\alpha$',r'$T$',r'$k$', r'$\nu$', r'$q$']
-##for i in range(ndim):
-##        prm_ax[i].hist(sampler.flatchain[:,i], 100, color="k", histtype="stepfilled")
-###prm_ax[2].set_xticklabels(['{:.1e}'.format(t) for t in prm_ax[2].get_xticks()])
-##plt.tight_layout()
-##plt.savefig('prm_dstr.png',dpi = 400)
-##
-##plt.show()
-##
-##samples = sampler.flatchain
-##
-##f2, ax2 = plt.subplots(1, figsize = (7,4))
-##ax2.plot(r, densities, 'o') 
-###ax.set_ylim(ax.get_ylim())
-##for i in range(len(samples)):
-##    ax2.plot(rplot, eq.p2D(rplot, samples[i][0], samples[i][1], samples[i][2], samples[i][3], samples[i][4]),'-',color='b',alpha=0.01,lw=.2)
-##ax2.set_xscale('log')
-##ax2.set_yscale('log')
-##ax2.set_title(fname.split(sep=".")[0])
-##plt.savefig('newberry_mcmc_diffusion.png',dpi=400)
-
 #==============================================================================
 
 

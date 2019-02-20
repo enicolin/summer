@@ -1052,7 +1052,7 @@ def p2D_transient(r, t_now, *args):
         assert(len(p) == len(r))
     else:
         P = (4*np.pi*k)/(nu*q)
-        P = 1/P
+#        P = 1/P
         mask = r >= rc # mask for the fit region
         r_fit = r[mask]
         r_plateau = r[~mask]
@@ -1107,7 +1107,7 @@ def robj_diff(theta, *const):
     # or (rc < lb[6] or rc > lb[6]) or (rbf_D < rc): 
     if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \
     (k < lb[2] or k > ub[2]) or (nu < lb[3] or nu > ub[3]) or (q < lb[4]\
-    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]) or t_now < T:
+    or q > ub[4]) or (t_now < lb[5] or t_now > ub[5]):
         return -np.inf
     
     exp = p2D_transient(r, t_now, alpha, T, k, nu, q, rc)
