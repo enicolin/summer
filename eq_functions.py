@@ -1015,7 +1015,7 @@ def p3D(r, *args):
     p = (erf((3/2)**0.5) - erf(arg/(1+2/3*arg**2)**0.5))/arg * p_factor
     return p
 
-def p2D_transient(r, t_now, *args):
+def p2D_transient(r, t_now, C, pc, *args):
     '''
     Non-dimensional solution for maximum pressure along radius r in 1D.
     Option to redimensionalise
@@ -1030,8 +1030,8 @@ def p2D_transient(r, t_now, *args):
     R = (4*alpha*T)**0.5 # characteristic length
     arg_t = t_now/T
     
-    if arg_t > 1:
-        P = (4*np.pi*k)/(nu*q)
+    if arg_t >= 1:
+        P = C*(4*np.pi*k)/(nu*q)
         rbf = (arg_t-1)**0.5
         mask = r >= min(rbf*R,rc) # mask for the fit region
         r_fit = r[mask]
@@ -1043,25 +1043,27 @@ def p2D_transient(r, t_now, *args):
         r_lwr = arg_r[arg_r < rbf]
         r_upr = arg_r[arg_r >= rbf]
         
-        p_upr = (W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1))) * P # transient pressure
-        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1)) * P  # pmax
+        p_upr = ((W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1)))-pc) * P # transient pressure
+        p_upr[np.where(p_upr<0)] = 0
+        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1) -pc) * P  # pmax
+        p_lwr[np.where(p_lwr<0)] = 0
         p = np.concatenate((p_lwr,p_upr))
         
         p_plateau = np.array([p[0] for i in r_plateau])
         p = np.concatenate((p_plateau, p))
         assert(len(p) == len(r))
     else:
-        P = (4*np.pi*k)/(nu*q)
+        P = C*(4*np.pi*k)/(nu*q)
 #        P = 1/P
         mask = r >= rc # mask for the fit region
         r_fit = r[mask]
         r_plateau = r[~mask]
         arg_r = (r_fit)/R # fit to region of 'large r'
         
-        p_fit = W(arg_r**2/arg_t) * P # transient pressure
+        p_fit = (W(arg_r**2/arg_t)-pc) * P # transient pressure
         p_plat = np.array([p_fit[0] for i in r_plateau])
         p = np.concatenate((p_plat, p_fit))
-        
+        p[np.where(p<0)] = 0
     return p
 
 def con_diff(theta, *const):
@@ -1080,7 +1082,8 @@ def con_diff(theta, *const):
     return [C, -C]
     
 def robj_diff(theta, *const):
-    alpha, k, nu, q, rc = theta
+    alpha, k, nu, q, rc, pc = theta[:6]
+    C = theta[6:]
     r, dens, bin_edges, MCMC, lb, ub, T, t_now = const
     
     # or (rc < lb[6] or rc > lb[6]) or (rbf_D < rc): 
@@ -1090,9 +1093,9 @@ def robj_diff(theta, *const):
 #        return -np.inf
     
     obj = 0
-    for ri, densi, ti in zip(r, dens, t_now):
-        exp = p2D_transient(ri, ti, alpha, T, k, nu, q, rc)
-        obj += -np.sum(((densi-exp)/densi)**2)#*T/ti
+    for ri, densi, ti, Ci in zip(r, dens, t_now, C):
+        exp = p2D_transient(ri, ti, Ci, pc, alpha, T, k, nu, q, rc)
+        obj += -np.sum(((densi-exp)/densi)**2)#*T/min(ti,T)
     
     if not MCMC:
         return -obj

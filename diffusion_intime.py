@@ -65,15 +65,17 @@ cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Dis
 catalog0 = catalog0.reindex(columns = cols)
 catalog0 = catalog0[catalog0.Year == metrics.loc[fname].year]
 catalog0 = catalog0[:251]
-catalog0.Time = catalog0.Time - catalog0.Time.min() + 475200 # first event was about 5 days into injection (432000 s = 5 days)
-N = len(catalog0)
+catalog0.Time = catalog0.Time - catalog0.Time.min() + 518400 # first event was about 5 days into injection (4.5e5 s approx 5 days)
+N = 241#len(catalog0)
 
 nsplit = 3
+
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
+#amount = np.array([150,180,251])
 r_all = []
 dens_all = []
 t = []
-T = 2.246e6
+T = 1.642e+6
 for i, n in enumerate(amount):
     catalog = catalog0.copy()
     catalog = catalog0[:int(n)] # only get first injection round 
@@ -85,7 +87,7 @@ for i, n in enumerate(amount):
     mask_filter_farevents =  r < metrics.loc[fname].ru # mask to get rid of very far field event
     r = r[mask_filter_farevents]
     densities = densities[mask_filter_farevents]
-    densities *= 100
+#    densities *= 100
     r_all.append(r)
     dens_all.append(densities)
     
@@ -109,14 +111,14 @@ for i, n in enumerate(amount):
     
     
 # bounds for the NEWBERRY case
-lb = [5.9e-14, 1e-15, 0.8e-6, 10, 50]
-ub = [6.1e-1, 1e-7, 1.3e-6, 1000, 60]
-# alpha, k, nu, q, rc
-#bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
+lb = [1e-16, 1e-14, 0.8e-6, 10, 40, 1e-10]+[1e-5]*nsplit
+ub = [0.1, 1e-6, 1.3e-6, 1000, 100, 1]+[1e1]*nsplit
+# alpha, k, nu, q, rc, pc, C
+bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 const = (r_all, dens_all, bin_edges, False, lb, ub, T, t)
 
 # do particle swarm opti.
-theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 3000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
+theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 1000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
 #theta_guess = theta0
 #minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"L-BFGS-B"}
 #annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
@@ -124,21 +126,24 @@ theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize =
 
 # plots
 #    f, ax = plt.subplots(1, figsize = (7,4))
-alpha, k, nu, q, rc = theta0
-
-colors = ['r','b','k','y']
+alpha, k, nu, q, rc, pc = theta0[:6]
+C = theta0[6:]
+colors = ['r','b','y','k']
 f, ax = plt.subplots(1, figsize = (7,4))
-rplot = np.linspace((rmin),(rmax),500)
+rplot = np.linspace((rmin),(250),500)
+rplot_all = [rplot, rplot, np.linspace(rmin,rmax,500)]
 for i, n in enumerate(amount):
-    ax.plot(r_all[i], dens_all[i], 'o', alpha = 0.5, color = colors[i])
-    ax.plot(rplot, eq.p2D_transient(rplot, t[i], alpha, T, k, nu, q, rc),'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
-#ax.set_xscale('log')
-#ax.set_yscale('log')
+    ax.plot(r_all[i], dens_all[i], 'o', alpha = 0.3, color = colors[i])
+    dens_model = eq.p2D_transient(rplot_all[i], t[i], C[i], pc, alpha, T, k, nu, q, rc)
+    dens_model[dens_model<=0] = np.nan
+    ax.plot(rplot_all[i], dens_model,'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
+ax.set_xscale('log')
+ax.set_yscale('log')
 ax.set_xlabel('distance from well (m)')
 ax.set_ylabel(r'event density $(/m^2)$')
 plt.title(fname.split(sep=".")[0])
-plt.legend(loc = 'best')
-#plt.savefig('diff_time_normalised.png',dpi=400)
+plt.legend(loc = 'lower left')
+plt.savefig('diff_time_3split_loglog.png',dpi=400)
 #==============================================================================
 
 print(datetime.now() - start)
