@@ -146,4 +146,26 @@ plt.legend(loc = 'lower left')
 plt.savefig('diff_time_3split_loglog.png',dpi=400)
 #==============================================================================
 
+# generate synthesis plot
+catalogPlots = catalog0.copy()
+fflow, axflow = plt.subplots(2, figsize=(10,5), gridspec_kw = {'height_ratios':[3, 1]})
+t = np.array(catalogPlots.Time) # get times of events
+t = t/60/60/24
+axflow[0].hist(t, bins=40, color='r', edgecolor='k')
+axflow[0].set(ylabel = 'Events', title = 'Event Frequency, Newberry 2014', xticklabels = [])
+axflow[0].set_xlim(0, t.max())
+#plt.tight_layout()
+#plt.savefig('newberr_event_freq.png',dpi=400)
+
+#f3, ax3 = plt.subplots(1, figsize=(8,2))
+t_inject = np.linspace(0,t.max(),100)
+injection = lambda t: [q/100 if ti < T/60/60/24 else 0 for ti in t_inject]
+flow = injection(t_inject)
+axflow[1].plot(t_inject, flow)
+axflow[1].set(xlabel='Time since injection begun (days)', ylabel = r'Flwo Rate $l/s$',xlim=(0, t.max()),ylim=(-0.1,8))
+#axflow[1].set_xlim(0, t.max())
+plt.tight_layout()
+plt.savefig('newberry_flowandfreq.png',dpi=400)
+
+
 print(datetime.now() - start)
