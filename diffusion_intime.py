@@ -28,13 +28,23 @@ f.close()
 # set up dataframe for dataset/location specific metrics
 rr = [42.088309, -113.387377] # 42.087593, -113.387119 ; 42.087905, -113.390624
 nwb = [43.726077, -121.309651] #  43.726066, -121.310861 ; 43.726208, -121.309869 ; 43.726179, -121.309841 ; 43.726077, -121.309651
-metrics = pd.DataFrame({'lat0':[nwb[0], rr[0]],
-                        'long0':[nwb[1], rr[1]],
-                        't0':[datetime(2012, 10, 29, hour=8, minute=2, second=21), datetime(2010, 10, 2 , hour=8, minute=13, second=26)],
-                        'ru':[10**2.63, 10**3.2],
-                        'rl':[3*1e1, 150],
-                        'year':['2014','2016']},
-    index =  ['newberry.txt','raft_river.txt'])
+brd = [39.791999, -119.013119]
+rrt0 = datetime(2010, 10, 2 , hour=8, minute=13, second=26) # first event times
+nwbt0 = datetime(2012, 10, 29, hour=8, minute=2, second=21)
+brdt0 = datetime(2010, 11, 13 , hour=8, minute=37, second=24)
+metrics = pd.DataFrame({'lat0':[nwb[0], rr[0], brd[0]],
+                        'long0':[nwb[1], rr[1], brd[1]],
+                        't0':[nwbt0, rrt0, brdt0],
+                        'ru':[10**2.63, 10**3.2, 1*1e3],
+                        'rl':[3*1e1, 150, 1e1],
+                        'T_inj':[1.901e+6, 3.416e+7, 1.642e+6],
+                        'T_adjust':[432000, 0, 0],
+                        'range':[slice(150,402),slice(82,168), slice(0,-1)],
+                        'q_lwr':[10,28,10],
+                        'q_upr':[1000,3469.95,1000],
+                        'rc_lwr':[40,320,50],
+                        'rc_upr':[100,450,300]},
+    index =  ['newberry.txt','raft_river.txt','bradys.txt'])
 r = 6371e3 # earth radius in m
 lat0, long0, t0 =  metrics.loc[fname].lat0, metrics.loc[fname].long0, metrics.loc[fname].t0 #43.725820, -121.310371 OG # newberry # 42.088047, -113.385184# raft river #  
 x0 = eq.gnom_x(lat0,long0,lat0,long0)
@@ -51,40 +61,35 @@ events_all = [eq.Event(float(event.split()[10]), \
 
 # format events in the pd dataframe format defined by generate_catalog etc. 
 catalog0 = pd.DataFrame({'Magnitude': [event.magnitude for event in events_all],
-                                   'Events':'-',
-                                   'n_avg':'-',
                                    'Time':[event.time for event in events_all],
-                                   'Distance':['-'] * len(events_all),
                                    'x':[event.x for event in events_all],
                                    'y':[event.y for event in events_all],
                                    'Generation':[0] * len(events_all),
                                    'Distance_from_origin': [event.distance_from_origin for event in events_all],
-                                   'Year':[event.split()[0] for event in flines],
                                    'Date':[datetime(int(event.split()[0]),int(event.split()[2]),int(event.split()[3]),hour=int(event.split()[4]),minute=int(event.split()[5]),second=int(float(event.split()[6]))) for event in flines]})
-cols = ['n_avg','Events','Magnitude','Generation','x','y','Distance','Time','Distance_from_origin','Year','Date']
+cols = ['Magnitude','Generation','x','y','Time','Distance_from_origin','Date']
 catalog0 = catalog0.reindex(columns = cols)
-catalog0 = catalog0[catalog0.Year == metrics.loc[fname].year]
-catalog0 = catalog0[:251]
-catalog0.Time = catalog0.Time - catalog0.Time.min() + 518400 # first event was about 5 days into injection (4.5e5 s approx 5 days)
-N = 241#len(catalog0)
+catalog0 = catalog0[metrics.loc[fname].range] # get events from time period of interest
+catalog0.Time = catalog0.Time - catalog0.Time.min() + metrics.loc[fname].T_adjust # shift time so that first event occurs however long after injection began 
+N = len(catalog0)
+k = 22
+eq.plot_catalog(catalog0, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 
 nsplit = 3
-
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
 #amount = np.array([150,180,251])
 r_all = []
 dens_all = []
 t = []
-T = 1.642e+6
+T = metrics.loc[fname].T_inj
 for i, n in enumerate(amount):
     catalog = catalog0.copy()
-    catalog = catalog0[:int(n)] # only get first injection round 
-    k = 22
-#    eq.plot_catalog(catalog, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
+    catalog = catalog[:int(n)] # only get first injection round 
+    assert len(catalog) > k, "Number of nearest neighbours exceed catalog size"
     r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
     
     # estimate densities prior to filtering by distance, so that they are not affected by absent events
-    mask_filter_farevents =  r < metrics.loc[fname].ru # mask to get rid of very far field event
+    mask_filter_farevents =  r < metrics.loc[fname].ru # mask to get rid of very far field events
     r = r[mask_filter_farevents]
     densities = densities[mask_filter_farevents]
 #    densities *= 100
@@ -111,8 +116,8 @@ for i, n in enumerate(amount):
     
     
 # bounds for the NEWBERRY case
-lb = [1e-16, 1e-14, 0.8e-6, 10, 40, 1e-10]+[1e-5]*nsplit
-ub = [0.1, 1e-6, 1.3e-6, 1000, 100, 1]+[1e1]*nsplit
+lb = [1e-16, 1e-14, 0.8e-6, metrics.loc[fname].q_lwr, metrics.loc[fname].rc_lwr, 1e-10]+[1e-5]*nsplit
+ub = [0.1, 1e-6, 1.3e-6, metrics.loc[fname].q_upr, metrics.loc[fname].rc_upr, 2]+[1e1]*nsplit
 # alpha, k, nu, q, rc, pc, C
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 const = (r_all, dens_all, bin_edges, False, lb, ub, T, t)
@@ -130,42 +135,42 @@ alpha, k, nu, q, rc, pc = theta0[:6]
 C = theta0[6:]
 colors = ['r','b','y','k']
 f, ax = plt.subplots(1, figsize = (7,4))
-rplot = np.linspace((rmin),(250),500)
+rplot = np.linspace((rmin),(rmax),500)
 rplot_all = [rplot, rplot, np.linspace(rmin,rmax,500)]
 for i, n in enumerate(amount):
     ax.plot(r_all[i], dens_all[i], 'o', alpha = 0.3, color = colors[i])
     dens_model = eq.p2D_transient(rplot_all[i], t[i], C[i], pc, alpha, T, k, nu, q, rc)
     dens_model[dens_model<=0] = np.nan
     ax.plot(rplot_all[i], dens_model,'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
-ax.set_xscale('log')
-ax.set_yscale('log')
+#ax.set_xscale('log')
+#ax.set_yscale('log')
 ax.set_xlabel('distance from well (m)')
 ax.set_ylabel(r'event density $(/m^2)$')
 plt.title(fname.split(sep=".")[0])
 plt.legend(loc = 'lower left')
-plt.savefig('diff_time_3split_loglog.png',dpi=400)
-#==============================================================================
-
+#plt.savefig('diff_time_3split_loglog.png',dpi=400)
+##==============================================================================
+#
 # generate synthesis plot
 catalogPlots = catalog0.copy()
 fflow, axflow = plt.subplots(2, figsize=(10,5), gridspec_kw = {'height_ratios':[3, 1]})
 t = np.array(catalogPlots.Time) # get times of events
-t = t/60/60/24
+#t = t#/60/60/24
 axflow[0].hist(t, bins=40, color='r', edgecolor='k')
-axflow[0].set(ylabel = 'Events', title = 'Event Frequency, Newberry 2014', xticklabels = [])
+axflow[0].set(ylabel = 'Events', title = fname, xticklabels = [])
 axflow[0].set_xlim(0, t.max())
 #plt.tight_layout()
 #plt.savefig('newberr_event_freq.png',dpi=400)
 
 #f3, ax3 = plt.subplots(1, figsize=(8,2))
 t_inject = np.linspace(0,t.max(),100)
-injection = lambda t: [q/100 if ti < T/60/60/24 else 0 for ti in t_inject]
-flow = injection(t_inject)
+#injection = lambda t: np.array([q/100 if ti < T/60/60/24 else 0 for ti in t_inject])
+flow = np.array([q/100 if ti < T else 0 for ti in t_inject])
 axflow[1].plot(t_inject, flow)
-axflow[1].set(xlabel='Time since injection begun (days)', ylabel = r'Flwo Rate $l/s$',xlim=(0, t.max()),ylim=(-0.1,8))
-#axflow[1].set_xlim(0, t.max())
+axflow[1].set(xlabel='Time since injection begun (s)', ylabel = r'Flwo Rate $l/s$',xlim=(0, t.max()),ylim=(-0.1,flow.max()+1))
+
 plt.tight_layout()
-plt.savefig('newberry_flowandfreq.png',dpi=400)
+plt.savefig(fname.split(sep='.')[0]+'_flowandfreq.png',dpi=400)
 
 
 print(datetime.now() - start)
