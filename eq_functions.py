@@ -25,7 +25,7 @@ class Event:
     
     def __repr__(self):
         '''Returns string representation of Event'''
-        return("{}(mgn = {}, time = {}, x = {}, y = {}, dst = {}, dst_frn_orgn = {}, gen = {})".format(self.__class__.__name__,
+        return("{}(mgn = {}, time = {}, x = {}, y = {}, dst = {}, dst_frm_orgn = {}, gen = {})".format(self.__class__.__name__,
                self.magnitude,
                self.time,
                self.x,
@@ -545,8 +545,6 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
                        cmap = 'Set1',
                        alpha = 0.75)
         lgnd = plt.legend(loc="best", scatterpoints=1, fontsize=18)
-        plt.ylim(y.min(),y.max())
-        plt.xlim(x.min(),x.max())
         for lgndhndl in lgnd.legendHandles:
             lgndhndl._sizes = [50]
 
@@ -582,6 +580,9 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
            c = '#21ff60',
            alpha = 1,
            marker = "v")
+    
+    plt.ylim(np.concatenate((y,[r0[1]])).min(),np.concatenate((y,[r0[1]])).max())
+    plt.xlim(np.concatenate((x,[r0[0]])).min(),np.concatenate((x,[r0[0]])).max())
     
     ax.set_ylabel('y position')
     ax.set_xlabel('x position')
