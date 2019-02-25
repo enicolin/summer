@@ -9,6 +9,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 import mpmath as mp
 from scipy.special import erf
 from scipy.special import exp1 as W
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
 #from itertools import compress
 
 class Event:
@@ -379,8 +380,8 @@ def generate_events(n_avg, t, dt, r, M0, Mc, b, cprime, pprime, gen, recursion):
     return events
         
 
-def generate_catalog(t0, r0, catalog_list, gen, recursion,
-                     Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin):
+def generate_catalog(t0, r0, catalog_list, gen,
+                     Tf,M0,A,alpha,b,c,cprime,p,pprime,Mc,smin, recursion = True):
     """
     Generate a synthetic aftershock catalog based off input parameters
     Recursively produces aftershocks for aftershocks
@@ -475,8 +476,8 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
                 r_parent = np.array([parent_shocks.iat[i,4], parent_shocks.iat[i,5]]) # parent shock position (x,y)
                 generate_catalog(parent_shocks.iat[i,7],
                                  r_parent,
-                                 catalog_list, gen+1, recursion,
-                                 Tf,parent_shocks.iat[i,2],A,alpha,b,c,cprime,p,pprime,Mc,smin)
+                                 catalog_list, gen+1,
+                                 Tf,parent_shocks.iat[i,2],A,alpha,b,c,cprime,p,pprime,Mc,smin,recursion=recursion)
     else:
         catalog_list.append(catalog)
         return
@@ -491,7 +492,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
                'Time' - default, colours events by time of occurrence
                'Generation' - colours by aftershock generation
     """
-    fig, ax = plt.subplots(1, figsize=(8,8))
+    f, ax = plt.subplots(1, figsize=(8,8))#, constrained_layout = True)
   
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract rows where events took place
     total_events = len(catalogs) # count how many events took place
@@ -510,19 +511,22 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         c = times
         cmap = 'Spectral'
         # update range for color bar if needed
-        cmax = times.max()
-        plot = plt.scatter(x, y,
+#        cmax = times.max()
+        plt.ylim(np.concatenate((y,[r0[1]])).min(),np.concatenate((y,[r0[1]])).max())
+        plt.xlim(np.concatenate((x,[r0[0]])).min(),np.concatenate((x,[r0[0]])).max())
+        plot = ax.scatter(x, y,
                    c = c,
-                   s = 0.12*10**magnitudes, # large events displayed much bigger than smaller ones
+                   s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
                    cmap = cmap,
                    alpha = 0.75)
-        plt.clim(0, cmax)
+#        plt.clim(0, cmax)
         
-        cax = fig.add_axes([0.91, 0.1, 0.075, 10 * 0.08])
-        cbar = plt.colorbar(plot, orientation='vertical', cax=cax)
-        cbar.set_label(color)
+#        cax = f.add_axes([1, 0, 0.1, 1])
+#        cax = divider.append_axes("right", size="5%", pad=0.05)
+        plt.colorbar(plot, fraction=0.046, pad=0.04,label=color)
+#        cbar.set_label(color)
     elif color == 'Generation':
-        colors = ['#ffa220', '#ddff20', '#20fffb', '#866be0', '#d83a77'] # haven't seen more than 4 generations, so up to 5 colours should be fine hopefully
+        colors = ['#ffa220', '#ddff20', '#20fffb', '#866be0', '#d83a77'] # haven't seen more than 4 generations, so up to 5 colours should be fine
         # filter events by generation - in order to provide legend for aftershock generation
         catalogs_bygen = [] # store them in a list
         for i in range(catalogs['Generation'].max()+1):
@@ -530,17 +534,17 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
         
         for catalog, event_color in zip(catalogs_bygen, colors):
             # get coordinates
-            x = catalogs['x']#dist * np.cos(theta)
-            y = catalogs['y']#dist * np.sin(theta)
+            x = catalogs['x']
+            y = catalogs['y']
             
             # get magnitudes for size
             magnitudes = catalog['Magnitude']
             magnitudes = np.array(magnitudes, dtype = np.float)
             
             c = np.array(catalog.Generation)[0] # colour is generation
-            ax.scatter(x, y,
+            plt.scatter(x, y,
                        c = event_color,
-                       s = 0.12*10**magnitudes, # large events displayed much bigger than smaller ones
+                       s = 0.05*10**magnitudes, # large events displayed much bigger than smaller ones
                        label = c,
                        cmap = 'Set1',
                        alpha = 0.75)
@@ -646,7 +650,7 @@ def catalog_plots(catalog_pkl):
     ax1.plot(time, rates, color = 'orange')
     ax1.set_yscale('log')
     ax1.set_xlabel('Time')
-    ax1.set_ylabel('Fequency of events per unit time')
+    ax1.set_ylabel('Frequency of events per unit time')
     ax1.set_title('Seismicity Rate')
     plt.xlim([0, time.max()])
     plt.tight_layout()
@@ -693,6 +697,7 @@ def catalog_plots(catalog_pkl):
     freq_gauss = gaussian_filter1d(frequencies, sigma)
     ax5.plot(bin_gauss, freq_gauss, color = 'black')
     ax5.set_ylabel('Smoothed event density')
+#    ax5.set_yscale('log')
     plt.xlim([0, distance.max()])
     
     # plot k nearest neighbour density for time
