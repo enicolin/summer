@@ -780,7 +780,7 @@ def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
 
 def plot_ED(catalogs_raw, k = 20, plot = True):
     """
-    Plot event density w.r.t distance from main shock. Also returns distance and density (x,y)
+    Plot event density w.r.t distance from main shock and return distance and density (x,y)
     Calculates densities by k-NN binning
     
     Inputs:
@@ -873,13 +873,6 @@ def rho2(r, rho0, rc, gmma):
     b = -r**(2*gmma)/(2+4*gmma)*np.array([float(mp.hyp2f1(1.5,(2*gmma+1)/(2*gmma), 2+0.5/gmma, -(ri/rc)**(2*gmma))) for ri in r])*(2*gmma/rc**(2*gmma))
     
     return rho0*(a + b)
-
-def rho_lin(r, rho0, rc, gmma, r0):
-    '''
-    linear approxmiation to rho at r0
-    '''
-    dens = rho0/(1+(r0/rc)**(2*gmma))**0.5 -(rho0*gmma*r0**(2**gmma-1))/(rc**(2*gmma)*(1+(r0/rc)**(2*gmma)))**1.5 * (r-r0)
-    return dens
     
 def LLK_rho(theta,rmax, rmin, r, bin_edges, n_edges, rho0):
     '''
@@ -1028,7 +1021,7 @@ def p2D_transient(r, t_now, C, pc, *args):
     Option to redimensionalise
     '''
     
-    alpha, T, k, nu, q, rc = args
+    alpha, T, k, nu, q, rc, pnoise = args
 #    mask = r >= rc # mask for the fit region
 #    r_fit = r[mask]
 #    r_plateau = r[~mask]
@@ -1050,9 +1043,9 @@ def p2D_transient(r, t_now, C, pc, *args):
         r_lwr = arg_r[arg_r < rbf]
         r_upr = arg_r[arg_r >= rbf]
         
-        p_upr = ((W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1)))-pc) * P # transient pressure
+        p_upr = ((W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1)))-pc) * P + pnoise# transient pressure
         p_upr[np.where(p_upr<0)] = 0
-        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1) -pc) * P  # pmax
+        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1) -pc) * P + pnoise  # pmax
         p_lwr[np.where(p_lwr<0)] = 0
         p = np.concatenate((p_lwr,p_upr))
         
@@ -1067,7 +1060,7 @@ def p2D_transient(r, t_now, C, pc, *args):
         r_plateau = r[~mask]
         arg_r = (r_fit)/R # fit to region of 'large r'
         
-        p_fit = (W(arg_r**2/arg_t)-pc) * P # transient pressure
+        p_fit = (W(arg_r**2/arg_t)-pc) * P + pnoise # transient pressure
         p_plat = np.array([p_fit[0] for i in r_plateau])
         p = np.concatenate((p_plat, p_fit))
         p[np.where(p<0)] = 0
@@ -1090,7 +1083,8 @@ def con_diff(theta, *const):
     
 def robj_diff(theta, *const):
     alpha, k, nu, q, rc, pc = theta[:6]
-    C = theta[6:]
+    C = theta[6:-1]
+    pnoise = theta[-1]
     r, dens, MCMC, lb, ub, T, t_now = const
     
     # or (rc < lb[6] or rc > lb[6]) or (rbf_D < rc): 
@@ -1101,7 +1095,7 @@ def robj_diff(theta, *const):
     
     obj = 0
     for ri, densi, ti, Ci in zip(r, dens, t_now, C):
-        exp = p2D_transient(ri, ti, Ci, pc, alpha, T, k, nu, q, rc)
+        exp = p2D_transient(ri, ti, Ci, pc, alpha, T, k, nu, q, rc, pnoise)
         obj += -np.sum(((densi-exp)/densi)**2)#*T/min(ti,T)
     
     if not MCMC:

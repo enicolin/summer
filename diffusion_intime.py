@@ -20,7 +20,7 @@ random.seed(1756)
 
 start = datetime.now()
 
-fname = 'raft_river.txt'
+fname = 'newberry.txt'
 f = open(fname, 'r')
 flines = f.readlines()
 f.close()
@@ -75,7 +75,7 @@ N = len(catalog0)
 k = 22
 eq.plot_catalog(catalog0, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 
-nsplit = 1
+nsplit = 3
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
 #amount = np.array([150,180,251])
 r_all = []
@@ -112,9 +112,9 @@ for i, n in enumerate(amount):
     
     
 # bounds for the NEWBERRY case
-lb = [1e-16, 1e-14, 0.8e-6, metrics.loc[fname].q_lwr, metrics.loc[fname].rc_lwr, 1e-3]+[1e-5]*nsplit
-ub = [0.1, 1e-6, 1.3e-6, metrics.loc[fname].q_upr, metrics.loc[fname].rc_upr, 1e1]+[1e1]*nsplit
-# alpha, k, nu, q, rc, pc, C
+lb = [1e-16, 1e-14, 0.8e-6, metrics.loc[fname].q_lwr, metrics.loc[fname].rc_lwr, 1e-3]+[1e-5]*nsplit+[5e-5]
+ub = [0.1, 1e-6, 1.3e-6, metrics.loc[fname].q_upr, metrics.loc[fname].rc_upr, 1e1]+[1e1]*nsplit+[5e-3]
+# alpha, k, nu, q, rc, pc, C, pnoise
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
 const = (r_all, dens_all, False, lb, ub, T, t)
 
@@ -128,14 +128,15 @@ theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize =
 # plots
 #    f, ax = plt.subplots(1, figsize = (7,4))
 alpha, k, nu, q, rc, pc = theta0[:6]
-C = theta0[6:]
+C = theta0[6:-1]
+pnoise = theta0[-1]
 colors = ['r','b','y','k']
 f, ax = plt.subplots(1, figsize = (7,4))
 rplot = np.linspace((rmin),(rmax),500)
 rplot_all = [rplot, rplot, np.linspace(rmin,rmax,500)]
 for i, n in enumerate(amount):
     ax.plot(r_all[i], dens_all[i], 'o', alpha = 0.3, color = colors[i])
-    dens_model = eq.p2D_transient(rplot_all[i], t[i], C[i], pc, alpha, T, k, nu, q, rc)
+    dens_model = eq.p2D_transient(rplot_all[i], t[i], C[i], pc, alpha, T, k, nu, q, rc, pnoise)
 #    dens_model[dens_model<=0] = np.nan
     ax.plot(rplot_all[i], dens_model,'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
 #ax.set_xscale('log')
