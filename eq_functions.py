@@ -481,7 +481,7 @@ def generate_catalog(t0, r0, catalog_list, gen, recursion,
         catalog_list.append(catalog)
         return
 
-def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot = False, k = 5):
+def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot = False, k = 20):
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
@@ -597,6 +597,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
     elif color == "Density":
         ax.set_title('Event Density by kNN, k = {}, {} events'.format(k, total_events))
     
+    plt.show()
     if saveplot:
         plt.savefig(savepath,dpi=400)
         plt.close('all')
@@ -1085,7 +1086,7 @@ def con_diff(theta, *const):
 def robj_diff(theta, *const):
     alpha, k, nu, q, rc, pc = theta[:6]
     C = theta[6:]
-    r, dens, bin_edges, MCMC, lb, ub, T, t_now = const
+    r, dens, MCMC, lb, ub, T, t_now = const
     
     # or (rc < lb[6] or rc > lb[6]) or (rbf_D < rc): 
 #    if (alpha < lb[0] or alpha > ub[0]) or (T < lb[1] or T > ub[1]) or \

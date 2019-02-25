@@ -20,7 +20,7 @@ random.seed(1756)
 
 start = datetime.now()
 
-fname = 'newberry.txt'
+fname = 'raft_river.txt'
 f = open(fname, 'r')
 flines = f.readlines()
 f.close()
@@ -37,11 +37,11 @@ metrics = pd.DataFrame({'lat0':[nwb[0], rr[0], brd[0]],
                         't0':[nwbt0, rrt0, brdt0],
                         'ru':[10**2.63, 10**3.2, 1*1e3],
                         'rl':[3*1e1, 150, 1e1],
-                        'T_inj':[1.901e+6, 3.416e+7, 1.642e+6],
-                        'T_adjust':[432000, 0, 0],
-                        'range':[slice(150,402),slice(82,168), slice(0,-1)],
-                        'q_lwr':[10,28,10],
-                        'q_upr':[1000,3469.95,1000],
+                        'T_inj':[1.901e+6, 1.616e+7, 1.642e+6],
+                        'T_adjust':[432000, 1.382e+6, 0],
+                        'range':[slice(150,402),slice(48,82), slice(0,-1)],
+                        'q_lwr':[10,16.8,10],
+                        'q_upr':[1000,883.2,1000],
                         'rc_lwr':[40,320,50],
                         'rc_upr':[100,450,300]},
     index =  ['newberry.txt','raft_river.txt','bradys.txt'])
@@ -75,7 +75,7 @@ N = len(catalog0)
 k = 22
 eq.plot_catalog(catalog0, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 
-nsplit = 3
+nsplit = 1
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
 #amount = np.array([150,180,251])
 r_all = []
@@ -105,10 +105,6 @@ for i, n in enumerate(amount):
     #rho0 = np.mean(densities[0:10])
     rmax = (r.max())
     rmin = (r.min())
-    n_edges = 32
-    bin_edges = np.linspace(np.log10(rmin), np.log10(rmax), n_edges) #np.array([r[i] for i in range(0, len(r), q)])
-    bin_edges = 10**bin_edges
-    #bin_edges = np.linspace(rmin, rmax, n_edges) #np.array([r[i] for i in range(0, len(r), q)])
     t_now = catalog.Time.max()
     t.append(t_now)
     #rc = metrics.loc[fname].rl
@@ -116,11 +112,11 @@ for i, n in enumerate(amount):
     
     
 # bounds for the NEWBERRY case
-lb = [1e-16, 1e-14, 0.8e-6, metrics.loc[fname].q_lwr, metrics.loc[fname].rc_lwr, 1e-10]+[1e-5]*nsplit
-ub = [0.1, 1e-6, 1.3e-6, metrics.loc[fname].q_upr, metrics.loc[fname].rc_upr, 2]+[1e1]*nsplit
+lb = [1e-16, 1e-14, 0.8e-6, metrics.loc[fname].q_lwr, metrics.loc[fname].rc_lwr, 1e-3]+[1e-5]*nsplit
+ub = [0.1, 1e-6, 1.3e-6, metrics.loc[fname].q_upr, metrics.loc[fname].rc_upr, 1e1]+[1e1]*nsplit
 # alpha, k, nu, q, rc, pc, C
 bounds = [(low, high) for low, high in zip(lb,ub)] # basinhop bounds
-const = (r_all, dens_all, bin_edges, False, lb, ub, T, t)
+const = (r_all, dens_all, False, lb, ub, T, t)
 
 # do particle swarm opti.
 theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 1000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
@@ -140,37 +136,37 @@ rplot_all = [rplot, rplot, np.linspace(rmin,rmax,500)]
 for i, n in enumerate(amount):
     ax.plot(r_all[i], dens_all[i], 'o', alpha = 0.3, color = colors[i])
     dens_model = eq.p2D_transient(rplot_all[i], t[i], C[i], pc, alpha, T, k, nu, q, rc)
-    dens_model[dens_model<=0] = np.nan
+#    dens_model[dens_model<=0] = np.nan
     ax.plot(rplot_all[i], dens_model,'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
 #ax.set_xscale('log')
 #ax.set_yscale('log')
 ax.set_xlabel('distance from well (m)')
 ax.set_ylabel(r'event density $(/m^2)$')
 plt.title(fname.split(sep=".")[0])
-plt.legend(loc = 'lower left')
+plt.legend(loc = 'upper right')
 #plt.savefig('diff_time_3split_loglog.png',dpi=400)
 ##==============================================================================
+
+## generate synthesis plot
+#catalogPlots = catalog0.copy()
+#fflow, axflow = plt.subplots(2, figsize=(10,5), gridspec_kw = {'height_ratios':[3, 1]})
+#t = np.array(catalogPlots.Time) # get times of events
+##t = t#/60/60/24
+#axflow[0].hist(t, bins=40, color='r', edgecolor='k')
+#axflow[0].set(ylabel = 'Events', title = fname, xticklabels = [])
+#axflow[0].set_xlim(0, t.max())
+##plt.tight_layout()
+##plt.savefig('newberr_event_freq.png',dpi=400)
 #
-# generate synthesis plot
-catalogPlots = catalog0.copy()
-fflow, axflow = plt.subplots(2, figsize=(10,5), gridspec_kw = {'height_ratios':[3, 1]})
-t = np.array(catalogPlots.Time) # get times of events
-#t = t#/60/60/24
-axflow[0].hist(t, bins=40, color='r', edgecolor='k')
-axflow[0].set(ylabel = 'Events', title = fname, xticklabels = [])
-axflow[0].set_xlim(0, t.max())
+##f3, ax3 = plt.subplots(1, figsize=(8,2))
+#t_inject = np.linspace(0,t.max(),100)
+##injection = lambda t: np.array([q/100 if ti < T/60/60/24 else 0 for ti in t_inject])
+#flow = np.array([q/100 if ti < T else 0 for ti in t_inject])
+#axflow[1].plot(t_inject, flow)
+#axflow[1].set(xlabel='Time since injection begun (s)', ylabel = r'Flwo Rate $l/s$',xlim=(0, t.max()),ylim=(-0.1,flow.max()+1))
+#
 #plt.tight_layout()
-#plt.savefig('newberr_event_freq.png',dpi=400)
-
-#f3, ax3 = plt.subplots(1, figsize=(8,2))
-t_inject = np.linspace(0,t.max(),100)
-#injection = lambda t: np.array([q/100 if ti < T/60/60/24 else 0 for ti in t_inject])
-flow = np.array([q/100 if ti < T else 0 for ti in t_inject])
-axflow[1].plot(t_inject, flow)
-axflow[1].set(xlabel='Time since injection begun (s)', ylabel = r'Flwo Rate $l/s$',xlim=(0, t.max()),ylim=(-0.1,flow.max()+1))
-
-plt.tight_layout()
-plt.savefig(fname.split(sep='.')[0]+'_flowandfreq.png',dpi=400)
+#plt.savefig(fname.split(sep='.')[0]+'_flowandfreq.png',dpi=400)
 
 
 print(datetime.now() - start)
