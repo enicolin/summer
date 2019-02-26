@@ -72,12 +72,11 @@ catalog0 = catalog0.reindex(columns = cols)
 catalog0 = catalog0[metrics.loc[fname].range] # get events from time period of interest
 catalog0.Time = catalog0.Time - catalog0.Time.min() + metrics.loc[fname].T_adjust # shift time so that first event occurs however long after injection began 
 N = len(catalog0)
-k = 22
-eq.plot_catalog(catalog0, 1, np.array([0,0]), color = 'Generation', k = k, saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
+#k = 6
+eq.plot_catalog(catalog0, 1, np.array([0,0]), color = 'Generation',  saveplot = False, savepath = fname.split(sep='.')[0]+'_positions.png')
 
 nsplit = 3
 amount = np.ceil(np.linspace(N/nsplit, N, nsplit))
-#amount = np.array([150,180,251])
 r_all = []
 dens_all = []
 t = []
@@ -85,6 +84,8 @@ T = metrics.loc[fname].T_inj
 for i, n in enumerate(amount):
     catalog = catalog0.copy()
     catalog = catalog[:int(n)] # only get first injection round 
+    k = int(np.ceil(len(catalog)**0.5))
+    print(len(catalog))
     assert len(catalog) > k, "Number of nearest neighbours exceed catalog size"
     r, densities = eq.plot_ED(catalog, k = k,  plot = False) # get distance, density
     
@@ -92,26 +93,16 @@ for i, n in enumerate(amount):
     mask_filter_farevents =  r < metrics.loc[fname].ru # mask to get rid of very far field events
     r = r[mask_filter_farevents]
     densities = densities[mask_filter_farevents]
-#    densities *= 100
     r_all.append(r)
     dens_all.append(densities)
     
-    #mask_fitregion = r > metrics.loc[fname].rl
-#    catalog.Time = catalog.Time - catalog.Time.min() # adjust so that first event is at time 0
-    
-    # David's models
-    #==============================================================================
-    # minimise weighted sum of squares
-    #rho0 = np.mean(densities[0:10])
     rmax = (r.max())
     rmin = (r.min())
     t_now = catalog.Time.max()
     t.append(t_now)
-    #rc = metrics.loc[fname].rl
-    #rc = 50
+
     
-    
-# bounds for the NEWBERRY case
+# bounds
 lb = [1e-16, 1e-14, 0.8e-6, metrics.loc[fname].q_lwr, metrics.loc[fname].rc_lwr, 1e-3]+[1e-5]*nsplit+[5e-5]
 ub = [0.1, 1e-6, 1.3e-6, metrics.loc[fname].q_upr, metrics.loc[fname].rc_upr, 1e1]+[1e1]*nsplit+[5e-3]
 # alpha, k, nu, q, rc, pc, C, pnoise
@@ -120,13 +111,7 @@ const = (r_all, dens_all, False, lb, ub, T, t)
 
 # do particle swarm opti.
 theta0, obj = pso(eq.robj_diff, lb, ub, args = const, maxiter = 500, swarmsize = 1000, phip = 0.75, minfunc = 1e-12, minstep = 1e-12, phig = 0.8)#, f_ieqcons = eq.con_diff)
-#theta_guess = theta0
-#minimizer_kwargs = {"args":const, "bounds":bounds}#, "method":"L-BFGS-B"}
-#annealed = optimize.basinhopping(eq.robj_diff, theta_guess, minimizer_kwargs = minimizer_kwargs, niter = 1000)
-#theta0 = annealed.x
 
-# plots
-#    f, ax = plt.subplots(1, figsize = (7,4))
 alpha, k, nu, q, rc, pc = theta0[:6]
 C = theta0[6:-1]
 pnoise = theta0[-1]
@@ -139,8 +124,8 @@ for i, n in enumerate(amount):
     dens_model = eq.p2D_transient(rplot_all[i], t[i], C[i], pc, alpha, T, k, nu, q, rc, pnoise)
 #    dens_model[dens_model<=0] = np.nan
     ax.plot(rplot_all[i], dens_model,'-',label='At {0:.1f} days'.format(t[i]/60/60/24), color = colors[i])
-#ax.set_xscale('log')
-#ax.set_yscale('log')
+ax.set_xscale('log')
+ax.set_yscale('log')
 ax.set_xlabel('distance from well (m)')
 ax.set_ylabel(r'event density $(/m^2)$')
 plt.title(fname.split(sep=".")[0])

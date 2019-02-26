@@ -4,7 +4,7 @@ from math import log
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import spatial
-from scipy import integrate
+#from scipy import integrate
 from scipy.ndimage.filters import gaussian_filter1d
 import mpmath as mp
 from scipy.special import erf
@@ -118,7 +118,7 @@ def bath_inv(u,M0,Mc,b):
     x -> x such that F(x) = u, where F is defined above
     """
     
-    dm = 1. # difference between main shock and greatest aftershock according to Båth
+    dm = 1. # difference between main shock and greatest aftershock according to Bath
     k = 1/(1-10**(-b*(M0-dm-Mc)))
     
     x = Mc - (1/b)*np.log10(1-u/k)
