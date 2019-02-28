@@ -486,7 +486,7 @@ def plot_catalog(catalogs_raw, M0, r0, color = 'Time', savepath = None, saveplot
     """
      Plots generated synthetic catalog from generate_catalog
      Inputs:
-     catalog_list -> concatenated output list of pandas DataFrames from generate_catalog
+     catalogs_raw -> concatenated output list of pandas DataFrames from generate_catalog
      M0 -> main shock magnitude
      color -> color scheme of events
                'Time' - default, colours events by time of occurrence
@@ -744,6 +744,8 @@ def catalog_plots(catalog_pkl):
 
 def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
     """
+    Note: this is essentially a brute force method. Instead use KD-trees for
+    querying nearest neighbours.
     Inputs:
     x -> list of np.array objects of same dimension or list of scalars
     x0 -> np.array or scalar
@@ -770,7 +772,7 @@ def kNN_measure(x, x0, k, goebel_dens = False, dim = 2):
 #            neighbour_distances = compress(neighbour_distances, keep)
         rmin = min(neighbour_distances)
         rmax = max(neighbour_distances)
-        measure = rmax
+        measure = rmax - rmin
     elif dim == 1:
         measure = np.abs(max(neighbour_distances) - min(neighbour_distances))
     if goebel_dens:
@@ -785,6 +787,7 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
     
     Inputs:
     catalogs_raw -> Pandas DataFrame event catalog
+    k -> number of nearest neighbours to query - affects smoothness of estimates
     """
     
     catalogs = catalogs_raw[catalogs_raw.Magnitude != 0] # extract events
@@ -833,13 +836,12 @@ def plot_ED(catalogs_raw, k = 20, plot = True):
         ax.set_yscale('log')#, nonposy = 'clip')
         ax.set_xlabel('distance from main shock')
         ax.set_ylabel('event density')
-        ax.set_ylim(0,r.max())
-        ax.set_xscale('log')#, nonposx = 'clip')
+        ax.set_yscale('log')
+        ax.set_xscale('log')
         plt.show()
 
-    return r, density0#/n**0.5
-    
-#    
+    return r, density0
+     
 def hav(lat1,lat2,long1,long2):
     '''
     Determine the haversine of the central angle between two points on a sphere given as latitudes and longitudes
@@ -848,7 +850,11 @@ def hav(lat1,lat2,long1,long2):
     
 def gcdist(R,lat1,lat2,long1,long2, deg = False):
     '''
-    Returns the great circle distance between two points on a sphere, given their latitude and longitudes, and radius of sphere
+    Returns the great circle distance between two points on a sphere, given their latitude and longitudes, and radius of sphere.
+    Assumes angles to be given in degrees by default, and in radians otherwise.
+    Inputs:
+        lat1, lat2 -> latitude of point 1 and 2
+        long1, long2 -> longitude of point 1 and 2
     '''
     
     if deg:
@@ -876,7 +882,7 @@ def rho2(r, rho0, rc, gmma):
     
 def LLK_rho(theta,rmax, rmin, r, bin_edges, n_edges, rho0):
     '''
-    Log likelihood function for radial event density.
+    Log likelihood function for radial event density. NOT RELIABLE
     Inputs:
     theta -> 1d array-like of parameters in order rc, gmma
     *const -> (required) arguments specifying rho0, rmax, r vector
@@ -919,7 +925,11 @@ def LLK_rho(theta,rmax, rmin, r, bin_edges, n_edges, rho0):
 
 def gnom_x(lat, long, lat0, long0, deg = True):
     '''
-    return x coordinate of a Gnomonic projection given a tangent plane's latitude/longitude coordinate where it contacts a unit sphere
+    Return x coordinate of a Gnomonic projection given a tangent plane's latitude/longitude coordinate where it contacts a unit sphere.
+    Assumes angles to be in degrees by default, and radians otherwise.
+    Inputs:
+        lat, long -> latitude and longitude of point of contact of tangent plane to unit sphere (injection point coordinate in context)
+        lat0, long0 -> latitude and longitude of point on unit sphere to project onto the tangent plane
     '''
     if deg:
         lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
@@ -932,7 +942,11 @@ def gnom_x(lat, long, lat0, long0, deg = True):
 
 def gnom_y(lat, long, lat0, long0, deg = True):
     '''
-    return y coordinate of a Gnomonic projection given a tangent plane's latitude/longitude coordinate where it contacts a unit sphere
+    Return y coordinate of a Gnomonic projection given a tangent plane's latitude/longitude coordinate where it contacts a unit sphere.
+    Assumes angles to be in degrees by default, and radians otherwise.
+    Inputs:
+        lat, long -> latitude and longitude of point of contact of tangent plane to unit sphere (injection point coordinate in context)
+        lat0, long0 -> latitude and longitude of point on unit sphere to project onto the tangent plane
     '''    
     if deg:
         lat0,long0,lat,long = lat0*np.pi/180, long0*np.pi/180, lat*np.pi/180, long*np.pi/180
@@ -945,7 +959,7 @@ def gnom_y(lat, long, lat0, long0, deg = True):
 
 def robj(prms, r, dens, bin_edges, q, MCMC):
     '''
-    Objective function to be minimised for model fit. Weighted least squares function.
+    Objective function to be minimised for Goebel model fit. Weighted least squares function.
     '''
     rc, gmma, rho0 = prms
     
@@ -962,10 +976,11 @@ def robj(prms, r, dens, bin_edges, q, MCMC):
 #    for k in range(len(dens)-n_app-1): # append remaining sigma at the end
 #        var.append(var_i)
 #    var = np.array(var)
-##
+
     lb = [1, 1, 1e-4]
     ub = [1000, 6, 1]
-        
+    
+    # bounds to specify for emcee
     if (rc < lb[0] or rc > ub[0]) or (gmma < lb[1] or gmma > ub[1]) or (rho0 < lb[2] or rho0 > ub[2]):
         return -np.inf
     
@@ -975,12 +990,11 @@ def robj(prms, r, dens, bin_edges, q, MCMC):
     if MCMC:
         return obj
     else:
-        return -obj
+        return -obj # psywarm minimises functions
     
 def p1D(r,*args):
     '''
-    Non-dimensional solution for maximum pressure along radius r in 1D.
-    Option to redimensionalise
+    Solution for maximum pressure for distant radius r in 1D.
     '''
     alpha, T, k, nu, q = args
     R = (4*alpha*T)**0.5
@@ -991,8 +1005,7 @@ def p1D(r,*args):
 
 def p2D(r, *args):
     '''
-    Non-dimensional solution for maximum pressure along radius r in 1D.
-    Option to redimensionalise
+    Solution for maximum pressure for distant radius r in 2D.
     '''
     
     alpha, T, k, nu, q = args
@@ -1005,8 +1018,7 @@ def p2D(r, *args):
 
 def p3D(r, *args):
     '''
-    Non-dimensional solution for maximum pressure along radius r in 1D.
-    Option to redimensionalise
+    Solution for maximum pressure for distant radius r in 3D.
     '''
     alpha, T, k, nu, q = args
     R = (4*alpha*T)**0.5
@@ -1017,8 +1029,7 @@ def p3D(r, *args):
 
 def p2D_transient(r, t_now, C, pc, *args):
     '''
-    Non-dimensional solution for maximum pressure along radius r in 1D.
-    Option to redimensionalise
+    2D solution for pressure during and after a period of (constant) injection
     '''
     
     alpha, T, k, nu, q, rc, pnoise = args
@@ -1030,6 +1041,7 @@ def p2D_transient(r, t_now, C, pc, *args):
     R = (4*alpha*T)**0.5 # characteristic length
     arg_t = t_now/T
     
+    # for time after injection
     if arg_t >= 1:
         P = C*(4*np.pi*k)/(nu*q)
         rbf = (arg_t-1)**0.5
@@ -1038,14 +1050,14 @@ def p2D_transient(r, t_now, C, pc, *args):
         r_plateau = r[~mask]
         arg_r = r_fit/R # fit to region of 'large r'
         assert(len(r_fit) + len(r_plateau) == len(r))
-    #    assert(rbf > rc)
         
-        r_lwr = arg_r[arg_r < rbf]
-        r_upr = arg_r[arg_r >= rbf]
         
-        p_upr = ((W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1)))-pc) * P + pnoise# transient pressure
+        r_lwr = arg_r[arg_r < rbf] # pressure here is time invariant
+        r_upr = arg_r[arg_r >= rbf] # transient pressure
+        
+        p_upr = ((W(r_upr**2/arg_t)-W(r_upr**2/(arg_t-1)))-pc) * P + pnoise# transient pressure - includes term for background seismicity and threshold pressure
         p_upr[np.where(p_upr<0)] = 0
-        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1) -pc) * P + pnoise  # pmax
+        p_lwr = (W(1/(1+1/r_lwr**2)) - W(1) -pc) * P + pnoise  # pmax - includes term for background seismicity and threshold pressure
         p_lwr[np.where(p_lwr<0)] = 0
         p = np.concatenate((p_lwr,p_upr))
         
@@ -1060,28 +1072,16 @@ def p2D_transient(r, t_now, C, pc, *args):
         r_plateau = r[~mask]
         arg_r = (r_fit)/R # fit to region of 'large r'
         
-        p_fit = (W(arg_r**2/arg_t)-pc) * P + pnoise # transient pressure
+        p_fit = (W(arg_r**2/arg_t)-pc) * P + pnoise # transient pressure - includes term for background seismicity and threshold pressure
         p_plat = np.array([p_fit[0] for i in r_plateau])
         p = np.concatenate((p_plat, p_fit))
         p[np.where(p<0)] = 0
     return p
-
-def con_diff(theta, *const):
-    '''
-    constraint vector for objective to ensure no discontinuity
-    '''
-    
-    alpha, T, k, nu, q, t_now = theta
-    r, dens, bin_edges, MCMC, lb, ub = const
-    
-    arg_t = t_now/T
-    rbf = (arg_t*(arg_t-1)*log(arg_t/(arg_t-1)))**0.5
-    
-    C = (W(rbf**2/arg_t)-W(rbf**2/(arg_t-1))) - (W(1/(1+1/rbf**2)) - W(1))
-    
-    return [C, -C]
     
 def robj_diff(theta, *const):
+    '''
+    Weighted least squares objective used for calibrating the 2D diffusion model in time.
+    '''
     alpha, k, nu, q, rc, pc = theta[:6]
     C = theta[6:-1]
     pnoise = theta[-1]
